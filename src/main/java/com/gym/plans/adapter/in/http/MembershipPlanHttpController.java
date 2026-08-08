@@ -2,12 +2,13 @@ package com.gym.plans.adapter.in.http;
 
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
-import com.gym.plans.adapter.in.http.dto.CreateMembershipPlanRequest;
-import com.gym.plans.adapter.in.http.dto.MembershipPlanResponse;
-import com.gym.plans.adapter.in.http.dto.MembershipPlansResponse;
-import com.gym.plans.adapter.in.http.dto.UpdateMembershipPlanRequest;
+import com.gym.plans.adapter.in.grpc.PlansResponseMapper;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.MembershipPlanDto;
+import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
+import com.gym.proto.plans.v1.MembershipPlanResponse;
+import com.gym.proto.plans.v1.MembershipPlansResponse;
+import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,16 +32,17 @@ public class MembershipPlanHttpController {
     public MembershipPlanResponse create(
             @PathVariable("gym_id") String gymId, @RequestBody CreateMembershipPlanRequest request) {
         GrpcAccessPolicy.requireGym(gymId);
-        long priceVnd = request.priceVnd() == null ? -1L : request.priceVnd();
+        Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
+        Boolean active = request.hasActive() ? request.getActive() : null;
         MembershipPlanDto dto = membershipPlanService.create(
                 gymId,
-                request.name(),
-                request.planType(),
-                request.durationDays(),
-                priceVnd,
-                request.description(),
-                request.active());
-        return MembershipPlanResponse.from(dto);
+                request.getName(),
+                request.getPlanType(),
+                duration,
+                request.getPriceVnd(),
+                request.getDescription(),
+                active);
+        return PlansResponseMapper.toPlanResponse(dto);
     }
 
     @PutMapping("/api/v1/plans/{id}")
@@ -49,23 +51,22 @@ public class MembershipPlanHttpController {
             @PathVariable("id") String id, @RequestBody UpdateMembershipPlanRequest request) {
         MembershipPlanDto existing = membershipPlanService.get(id);
         GrpcAccessPolicy.requireGym(existing.gymId());
-        boolean active = request.active() != null && request.active();
-        long priceVnd = request.priceVnd() == null ? -1L : request.priceVnd();
+        Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         MembershipPlanDto dto = membershipPlanService.update(
                 id,
-                request.name(),
-                request.planType(),
-                request.durationDays(),
-                priceVnd,
-                request.description(),
-                active);
-        return MembershipPlanResponse.from(dto);
+                request.getName(),
+                request.getPlanType(),
+                duration,
+                request.getPriceVnd(),
+                request.getDescription(),
+                request.getActive());
+        return PlansResponseMapper.toPlanResponse(dto);
     }
 
     @GetMapping("/api/v1/plans/{id}")
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public MembershipPlanResponse get(@PathVariable("id") String id) {
-        return MembershipPlanResponse.from(membershipPlanService.get(id));
+        return PlansResponseMapper.toPlanResponse(membershipPlanService.get(id));
     }
 
     @GetMapping("/api/v1/gyms/{gym_id}/plans")
@@ -74,6 +75,10 @@ public class MembershipPlanHttpController {
             @PathVariable("gym_id") String gymId,
             @RequestParam(value = "plan_type", required = false) String planType,
             @RequestParam(value = "active", required = false) Boolean active) {
-        return MembershipPlansResponse.from(membershipPlanService.list(gymId, planType, active));
+        return MembershipPlansResponse.newBuilder()
+                .addAllPlans(membershipPlanService.list(gymId, planType, active).stream()
+                        .map(PlansResponseMapper::toPlanResponse)
+                        .toList())
+                .build();
     }
 }

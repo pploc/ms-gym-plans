@@ -7,11 +7,11 @@ import com.gym.proto.plans.v1.GymLocationResponse;
 import com.gym.proto.plans.v1.MembershipPlanResponse;
 import com.gym.proto.plans.v1.ResolvedPlanResponse;
 
-final class PlansResponseMapper {
+public final class PlansResponseMapper {
 
     private PlansResponseMapper() {}
 
-    static GymLocationResponse toGymResponse(GymLocationDto dto) {
+    public static GymLocationResponse toGymResponse(GymLocationDto dto) {
         return GymLocationResponse.newBuilder()
                 .setId(dto.id())
                 .setChainId(dto.chainId())
@@ -22,7 +22,7 @@ final class PlansResponseMapper {
                 .build();
     }
 
-    static MembershipPlanResponse toPlanResponse(MembershipPlanDto dto) {
+    public static MembershipPlanResponse toPlanResponse(MembershipPlanDto dto) {
         MembershipPlanResponse.Builder builder = MembershipPlanResponse.newBuilder()
                 .setId(dto.id())
                 .setGymId(dto.gymId())
@@ -37,7 +37,7 @@ final class PlansResponseMapper {
         return builder.build();
     }
 
-    static ResolvedPlanResponse toResolvedResponse(ResolvedPlanDto dto) {
+    public static ResolvedPlanResponse toResolvedResponse(ResolvedPlanDto dto) {
         ResolvedPlanResponse.Builder builder = ResolvedPlanResponse.newBuilder()
                 .setPlanId(dto.planId())
                 .setGymId(dto.gymId())
