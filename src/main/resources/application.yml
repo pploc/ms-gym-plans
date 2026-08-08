@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: ms-gym-plans
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5433/plans_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080
+
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:50051}
+    tls:
+      enabled: ${PLANS_GRPC_TLS_ENABLED:true}
+      allow-plaintext: ${PLANS_GRPC_ALLOW_PLAINTEXT:false}
+      certificate-chain: ${PLANS_GRPC_SERVER_CERT:}
+      private-key: ${PLANS_GRPC_SERVER_KEY:}
+      client-ca: ${PLANS_GRPC_CLIENT_CA:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    com.gym.plans: DEBUG

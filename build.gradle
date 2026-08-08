@@ -1,0 +1,153 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.0'
+    id 'io.spring.dependency-management' version '1.1.6'
+    id 'com.diffplug.spotless' version '6.25.0'
+    id 'jacoco'
+}
+
+group = 'com.gym.plans'
+version = '1.0.0'
+
+jacoco {
+    toolVersion = '0.8.14'
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(26)
+    }
+}
+
+def gprUser = System.getenv("GITHUB_ACTOR") ?: project.findProperty("gpr.user") ?: "pploc"
+def gprKey = System.getenv("GITHUB_TOKEN")
+        ?: System.getenv("READ_PACKAGES_TOKEN")
+        ?: System.getenv("GPR_TOKEN")
+        ?: System.getenv("GPR_KEY")
+        ?: project.findProperty("gpr.key")
+
+if (gprKey == null || gprKey.isEmpty()) {
+    logger.quiet("WARNING: GitHub Packages token is NULL or EMPTY! Authentication to https://maven.pkg.github.com will fail with 401 Unauthorized.")
+} else {
+    logger.quiet("GitHub Packages auth: username='{}', token present (length={})", gprUser, gprKey.length())
+}
+
+repositories {
+    mavenCentral()
+    maven { url 'https://packages.confluent.io/maven/' }
+    maven {
+        url = uri("https://maven.pkg.github.com/pploc/gym-proto")
+        credentials {
+            username = gprUser
+            password = gprKey
+        }
+        content {
+            includeGroup 'com.gym.proto'
+        }
+    }
+    maven {
+        url = uri("https://maven.pkg.github.com/pploc/common-java")
+        credentials {
+            username = gprUser
+            password = gprKey
+        }
+        content {
+            includeGroup 'com.gym'
+        }
+    }
+}
+
+def grpcVersion = '1.68.1'
+def testcontainersVersion = '1.20.1'
+
+dependencies {
+    implementation 'com.gym:common-java:2.0.0'
+    implementation 'com.gym.proto:gym-proto-java:3.0.0'
+    implementation('com.google.protobuf:protobuf-java') {
+        version { strictly '3.25.4' }
+    }
+    implementation('com.google.protobuf:protobuf-java-util') {
+        version { strictly '3.25.4' }
+    }
+    implementation('com.google.api.grpc:proto-google-common-protos') {
+        version { strictly '2.22.1' }
+    }
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.springframework.security:spring-security-core'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    ['compileOnly', 'annotationProcessor', 'testCompileOnly', 'testAnnotationProcessor'].each {
+        add(it, 'org.projectlombok:lombok')
+    }
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation "io.grpc:grpc-testing:${grpcVersion}"
+    testImplementation "io.grpc:grpc-inprocess:${grpcVersion}"
+    testRuntimeOnly 'com.h2database:h2'
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
+}
+
+def jacocoExcludes = [
+        'com/gym/plans/MsGymPlansApplication.class',
+        'com/gym/plans/config/**',
+        'com/gym/plans/**/dto/**',
+        'com/gym/plans/**/model/**',
+        'com/gym/plans/**/error/**',
+        'com/gym/plans/**/entity/**',
+        'com/gym/plans/**/specification/**'
+]
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    dependsOn jacocoTestReport
+    violationRules {
+        rule {
+            element = 'BUNDLE'
+            limit {
+                counter = 'LINE'
+                value = 'COVEREDRATIO'
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+afterEvaluate {
+    [jacocoTestReport, jacocoTestCoverageVerification].each { task ->
+        task.classDirectories.setFrom(files(task.classDirectories.files.collect {
+            fileTree(dir: it, exclude: jacocoExcludes)
+        }))
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification
+
+spotless {
+    java {
+        target 'src/*/java/**/*.java'
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+        lineEndings 'UNIX'
+    }
+}
