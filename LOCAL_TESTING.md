@@ -1,6 +1,6 @@
 # Plans — local testing (gRPC + HTTP)
 
-Copy-paste bodies for Postman / grpcurl. No Identifier or Kong required: inject trusted claims headers the same way Kong would.
+Copy-paste bodies for Postman / grpcurl. No Identifier or Kong required: inject trusted claim metadata the same way Kong would.
 
 ## 1. Start (default = mTLS)
 
@@ -10,14 +10,7 @@ cd ms-gym-plans
 ./gradlew bootRun
 ```
 
-`bootRun` runs `ensureLocalCerts` if `certs/local/` incomplete. Defaults in `application.yml`:
-
-| Env / property | Default |
-|----------------|---------|
-| `PLANS_GRPC_TLS_ENABLED` | `true` |
-| `PLANS_GRPC_SERVER_CERT` | `certs/local/server.crt` |
-| `PLANS_GRPC_SERVER_KEY` | `certs/local/server.key` |
-| `PLANS_GRPC_CLIENT_CA` | `certs/local/ca.crt` |
+`bootRun` runs `ensureLocalCerts` if `certs/local/` incomplete.
 
 | Port | Protocol |
 |------|----------|
@@ -27,7 +20,7 @@ cd ms-gym-plans
 
 Stop deps: `./gradlew stopEnv`.
 
-Plaintext override only if needed:
+Plaintext override:
 
 ```bash
 export PLANS_GRPC_TLS_ENABLED=false
@@ -37,65 +30,59 @@ export PLANS_GRPC_ALLOW_PLAINTEXT=true
 
 Proto: `../gym-proto/proto/plans/v1/plans.proto` (import path root `../gym-proto/proto`).
 
-### Postman / grpcurl mTLS
+### Shared shell vars (grpcurl)
 
-1. Settings → Certificates → host `localhost` port `50051`  
-   - CRT/KEY: `certs/local/client-postman.crt` + `.key`  
-   - or PFX: `client-postman.p12` password `changeit`  
-   - trust `ca.crt`
-2. Metadata for **public** RPCs: `x-user-id`, `x-user-role`, `x-membership-status` (omit blank `x-gym-id`).
-3. Internal:
-   - `GetActiveGym` → `client-identifier.*` (SAN `ms-gym-identifier`)
-   - `ResolvePurchasablePlan` → `client-member.*` (SAN `ms-gym-member`)
+```bash
+# from ms-gym-plans
+PROTO_DIR=../gym-proto/proto
+C=certs/local
+MTLS=(-cacert "$C/ca.crt" -cert "$C/client-postman.crt" -key "$C/client-postman.key")
+H_SUPER=(-H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN' -H 'x-membership-status: NONE')
+H_ADMIN=(-H 'x-user-id: admin-1' -H 'x-user-role: ADMIN' -H 'x-membership-status: NONE' -H 'x-gym-id: GYM_ID')
+H_CUST=(-H 'x-user-id: cust-1' -H 'x-user-role: CUSTOMER' -H 'x-membership-status: NONE')
+```
 
-Client cert = peer identity. Role still from claim metadata (local fake Kong).
+### Postman gRPC setup (once)
 
-## 2. Auth — no JWT / no Identifier
+1. Certificates → host `localhost` port `50051` → `client-postman.crt` + `.key` (or `.p12` / `changeit`); trust `ca.crt`.
+2. New gRPC → URL `localhost:50051` (TLS on).
+3. Import `plans/v1/plans.proto` (import path = `gym-proto/proto`).
+4. Method: `plans.v1.PlansService/<Method>`.
+5. **Metadata** tab = claim keys (not REST Headers).
+6. **Message** tab = JSON below (camelCase).
 
-**Prod path:** FE → Kong validates Identifier JWT → Kong **strips** client `x-user-*` → injects trusted claims → Plans HTTP.
+Internal RPCs: switch client cert to `client-identifier.*` or `client-member.*`.
 
-**Local path:** skip Identifier + Kong. You inject the same claim headers yourself. Plans never sees an access token; it only reads:
+---
 
-Plans does **not** accept JWT. Send Kong-style metadata / headers:
+## 2. Auth metadata
 
 | Key | Example | Notes |
 |-----|---------|--------|
-| `x-user-id` | `super-1` | required |
+| `x-user-id` | `super-1` | required for public RPCs |
 | `x-user-role` | `SUPER_ADMIN` | `CUSTOMER` \| `TRAINER` \| `ADMIN` \| `SUPER_ADMIN` |
 | `x-membership-status` | `NONE` | `NONE` \| `ACTIVE` \| `PAUSED` \| `EXPIRED` |
-| `x-gym-id` | `<gym-uuid>` | required for scoped `ADMIN` writes; **omit** when empty (do not send blank) |
+| `x-gym-id` | `<gym-uuid>` | required for scoped `ADMIN` writes; **omit** if empty |
 
-### Role cheat sheet
+| RPC | Roles / cert |
+|-----|----------------|
+| CreateGymLocation | `SUPER_ADMIN` + postman cert |
+| UpdateGymLocation, Create/Update plan | `ADMIN` / `SUPER_ADMIN` + postman cert |
+| Get / list gyms & plans | any authenticated role + postman cert |
+| GetActiveGym | **identifier** client cert only (no user metadata) |
+| ResolvePurchasablePlan | **member** client cert only (no user metadata) |
 
-| RPC / HTTP | Roles |
-|------------|--------|
-| Create gym | `SUPER_ADMIN` |
-| Update gym, create/update plan | `ADMIN` or `SUPER_ADMIN` (`ADMIN` only if `x-gym-id` matches that gym) |
-| Get / list gyms & plans | any authenticated role above |
-| `GetActiveGym` | mTLS workload **Identifier** only — not for Postman plaintext |
-| `ResolvePurchasablePlan` | mTLS workload **Member** only — not for Postman plaintext |
+---
 
-## 3. Postman — gRPC
+## 3. Public RPCs — body + grpcurl
 
-1. New → **gRPC** request.
-2. Server URL: `grpc://localhost:50051` (or `localhost:50051` + enable plaintext / insecure if prompted).
-3. Service definition: import `plans/v1/plans.proto` with import path = `gym-proto/proto`.
-4. Method: pick `plans.v1.PlansService/...`.
-5. **Metadata** tab: add the four keys above (omit `x-gym-id` for super-admin create gym).
-6. **Message** tab: paste JSON body (protobuf JSON = **camelCase**).
+Replace `GYM_ID` / `PLAN_ID` after creates.
 
-Reflection alternative (if enabled on server):
+### CreateGymLocation
 
-```bash
-grpcurl -plaintext localhost:50051 list
-grpcurl -plaintext localhost:50051 describe plans.v1.PlansService
-```
-
-## 4. gRPC bodies (camelCase)
-
-Replace UUIDs after create responses.
-
-### CreateGymLocation — `SUPER_ADMIN`
+- **Service:** `plans.v1.PlansService/CreateGymLocation`
+- **Metadata:** `x-user-id=super-1`, `x-user-role=SUPER_ADMIN`, `x-membership-status=NONE`
+- **Postman Message (copy):**
 
 ```json
 {
@@ -106,7 +93,24 @@ Replace UUIDs after create responses.
 }
 ```
 
-### UpdateGymLocation — full replace
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_SUPER[@]}" \
+  -d '{
+  "chainId": "chain-vn-hcm",
+  "name": "Saigon Landmark 81",
+  "address": "720A Dien Bien Phu, Binh Thanh",
+  "city": "Ho Chi Minh"
+}' \
+  localhost:50051 plans.v1.PlansService/CreateGymLocation
+```
+
+---
+
+### UpdateGymLocation
+
+- **Service:** `plans.v1.PlansService/UpdateGymLocation`
+- **Metadata:** `SUPER_ADMIN` or `ADMIN` + `x-gym-id=GYM_ID`
+- **Postman Message:**
 
 ```json
 {
@@ -121,7 +125,26 @@ Replace UUIDs after create responses.
 
 `status`: `ACTIVE` | `CLOSED`.
 
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_SUPER[@]}" \
+  -d '{
+  "id": "GYM_ID",
+  "chainId": "chain-vn-hcm",
+  "name": "Saigon Landmark 81 - Renamed",
+  "address": "720A Dien Bien Phu, Binh Thanh, HCMC",
+  "city": "Ho Chi Minh",
+  "status": "ACTIVE"
+}' \
+  localhost:50051 plans.v1.PlansService/UpdateGymLocation
+```
+
+---
+
 ### GetGymLocation
+
+- **Service:** `plans.v1.PlansService/GetGymLocation`
+- **Metadata:** any authenticated role
+- **Postman Message:**
 
 ```json
 {
@@ -129,7 +152,21 @@ Replace UUIDs after create responses.
 }
 ```
 
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_CUST[@]}" \
+  -d '{
+  "id": "GYM_ID"
+}' \
+  localhost:50051 plans.v1.PlansService/GetGymLocation
+```
+
+---
+
 ### ListGymLocations
+
+- **Service:** `plans.v1.PlansService/ListGymLocations`
+- **Metadata:** any authenticated role
+- **Postman Message (filtered):**
 
 ```json
 {
@@ -139,13 +176,29 @@ Replace UUIDs after create responses.
 }
 ```
 
-Empty strings omit filters:
+**Postman Message (no filters):**
 
 ```json
 {}
 ```
 
-### CreateMembershipPlan — path gym is request field for gRPC
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_CUST[@]}" \
+  -d '{
+  "chainId": "chain-vn-hcm",
+  "city": "Ho Chi Minh",
+  "status": "ACTIVE"
+}' \
+  localhost:50051 plans.v1.PlansService/ListGymLocations
+```
+
+---
+
+### CreateMembershipPlan
+
+- **Service:** `plans.v1.PlansService/CreateMembershipPlan`
+- **Metadata:** `SUPER_ADMIN` or `ADMIN` + matching `x-gym-id`
+- **Postman Message:**
 
 ```json
 {
@@ -164,9 +217,27 @@ Empty strings omit filters:
 | `MONTHLY` / `YEARLY` | required, positive |
 | `LIFETIME` | omit / unset |
 
-`active` optional on create (default `true`).
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_SUPER[@]}" \
+  -d '{
+  "gymId": "GYM_ID",
+  "name": "Premium Monthly Unlimited",
+  "planType": "MONTHLY",
+  "durationDays": 30,
+  "priceVnd": 899000,
+  "description": "Full access all zones, locker, towel, group classes",
+  "active": true
+}' \
+  localhost:50051 plans.v1.PlansService/CreateMembershipPlan
+```
 
-### UpdateMembershipPlan — full replace (`gymId` not updatable)
+---
+
+### UpdateMembershipPlan
+
+- **Service:** `plans.v1.PlansService/UpdateMembershipPlan`
+- **Metadata:** `SUPER_ADMIN` or `ADMIN` + gym scope
+- **Postman Message:**
 
 ```json
 {
@@ -180,7 +251,29 @@ Empty strings omit filters:
 }
 ```
 
+(`gymId` not updatable.)
+
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_SUPER[@]}" \
+  -d '{
+  "id": "PLAN_ID",
+  "name": "Premium Monthly Unlimited Plus",
+  "planType": "MONTHLY",
+  "durationDays": 31,
+  "priceVnd": 999000,
+  "description": "Full access + guest pass",
+  "active": true
+}' \
+  localhost:50051 plans.v1.PlansService/UpdateMembershipPlan
+```
+
+---
+
 ### GetMembershipPlan
+
+- **Service:** `plans.v1.PlansService/GetMembershipPlan`
+- **Metadata:** any authenticated role
+- **Postman Message:**
 
 ```json
 {
@@ -188,7 +281,21 @@ Empty strings omit filters:
 }
 ```
 
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_CUST[@]}" \
+  -d '{
+  "id": "PLAN_ID"
+}' \
+  localhost:50051 plans.v1.PlansService/GetMembershipPlan
+```
+
+---
+
 ### ListMembershipPlans
+
+- **Service:** `plans.v1.PlansService/ListMembershipPlans`
+- **Metadata:** any authenticated role
+- **Postman Message:**
 
 ```json
 {
@@ -198,41 +305,73 @@ Empty strings omit filters:
 }
 ```
 
-### Internal (skip in Postman plaintext)
-
-```json
-{ "gymId": "GYM_ID" }
+```bash
+grpcurl "${MTLS[@]}" -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H_CUST[@]}" \
+  -d '{
+  "gymId": "GYM_ID",
+  "planType": "MONTHLY",
+  "active": true
+}' \
+  localhost:50051 plans.v1.PlansService/ListMembershipPlans
 ```
 
+---
+
+## 4. Internal RPCs — body + grpcurl
+
+No `x-user-*` as workload proof. Use workload client cert.
+
+### GetActiveGym
+
+- **Service:** `plans.v1.PlansService/GetActiveGym`
+- **Client cert:** `client-identifier.crt` / `.key` (SAN `ms-gym-identifier`)
+- **Metadata:** none required
+- **Postman Message:**
+
 ```json
-{ "planId": "PLAN_ID", "gymId": "GYM_ID" }
+{
+  "gymId": "GYM_ID"
+}
 ```
-
-These need real mTLS client certs (`GetActiveGym` / `ResolvePurchasablePlan`).
-
-## 5. grpcurl one-liners (mTLS default)
 
 ```bash
-# from ms-gym-plans
-PROTO_DIR=../gym-proto/proto
-C=certs/local
-H=(-H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN' -H 'x-membership-status: NONE')
-
-grpcurl -cacert "$C/ca.crt" -cert "$C/client-postman.crt" -key "$C/client-postman.key" \
-  -import-path "$PROTO_DIR" -proto plans/v1/plans.proto "${H[@]}" \
-  -d '{"chainId":"chain-vn-hcm","name":"Saigon Landmark 81","address":"720A Dien Bien Phu","city":"Ho Chi Minh"}' \
-  localhost:50051 plans.v1.PlansService/CreateGymLocation
-
-# internal GetActiveGym (Identifier SAN)
 grpcurl -cacert "$C/ca.crt" -cert "$C/client-identifier.crt" -key "$C/client-identifier.key" \
   -import-path "$PROTO_DIR" -proto plans/v1/plans.proto \
-  -d '{"gymId":"GYM_ID"}' \
+  -d '{
+  "gymId": "GYM_ID"
+}' \
   localhost:50051 plans.v1.PlansService/GetActiveGym
 ```
 
-If field ignored, try snake_case (`chain_id`); parser accepts both.
+---
 
-## 6. Postman — HTTP (REST)
+### ResolvePurchasablePlan
+
+- **Service:** `plans.v1.PlansService/ResolvePurchasablePlan`
+- **Client cert:** `client-member.crt` / `.key` (SAN `ms-gym-member`)
+- **Metadata:** none required
+- **Postman Message:**
+
+```json
+{
+  "planId": "PLAN_ID",
+  "gymId": "GYM_ID"
+}
+```
+
+```bash
+grpcurl -cacert "$C/ca.crt" -cert "$C/client-member.crt" -key "$C/client-member.key" \
+  -import-path "$PROTO_DIR" -proto plans/v1/plans.proto \
+  -d '{
+  "planId": "PLAN_ID",
+  "gymId": "GYM_ID"
+}' \
+  localhost:50051 plans.v1.PlansService/ResolvePurchasablePlan
+```
+
+---
+
+## 5. Postman — HTTP (REST)
 
 Base: `http://localhost:8080`  
 Same claim **headers** (not metadata). Bodies **camelCase**.
@@ -250,8 +389,6 @@ Same claim **headers** (not metadata). Bodies **camelCase**.
 
 ### POST `/api/v1/gyms`
 
-Headers: `Content-Type: application/json`, `x-user-id`, `x-user-role: SUPER_ADMIN`, `x-membership-status: NONE`
-
 ```json
 {
   "chainId": "chain-vn-hcm",
@@ -263,7 +400,7 @@ Headers: `Content-Type: application/json`, `x-user-id`, `x-user-role: SUPER_ADMI
 
 ### POST `/api/v1/gyms/{gym_id}/plans`
 
-Also set `x-gym-id: {gym_id}` when roleing as `ADMIN`.
+(`gymId` from path only.)
 
 ```json
 {
@@ -275,8 +412,6 @@ Also set `x-gym-id: {gym_id}` when roleing as `ADMIN`.
   "active": true
 }
 ```
-
-(`gymId` comes from the path, not the body.)
 
 ### PUT `/api/v1/gyms/{id}`
 
@@ -305,19 +440,24 @@ Also set `x-gym-id: {gym_id}` when roleing as `ADMIN`.
 
 No delete APIs — use `status: CLOSED` / `active: false`.
 
-## 7. Suggested happy path
+---
 
-1. Create gym as `SUPER_ADMIN` → copy `id`.
-2. Create monthly plan under that gym → copy plan `id`.
-3. List plans as `CUSTOMER`.
-4. Update plan `active: false`, list with `active=true` → empty/hidden.
-5. Update gym `status: CLOSED`.
+## 6. Happy path
 
-## 8. Common failures
+1. CreateGymLocation → copy `id` → `GYM_ID`
+2. CreateMembershipPlan → copy `id` → `PLAN_ID`
+3. ListMembershipPlans as `CUSTOMER`
+4. UpdateMembershipPlan `active: false`
+5. GetActiveGym / ResolvePurchasablePlan with workload certs
+
+---
+
+## 7. Common failures
 
 | Symptom | Cause |
 |---------|--------|
-| `UNAUTHENTICATED` / 401 | missing `x-user-id` or `x-user-role`, or blank `x-gym-id` header |
-| `PERMISSION_DENIED` / 403 | wrong role or `ADMIN` gym mismatch |
+| `UNAUTHENTICATED` / 401 | missing `x-user-id` or `x-user-role`, or blank `x-gym-id` |
+| `PERMISSION_DENIED` / 403 | wrong role, gym mismatch, or wrong client cert on internal RPC |
 | `INVALID_ARGUMENT` / 400 | bad `planType`, duration rules, empty required strings |
-| connection TLS error | forgot `PLANS_GRPC_TLS_ENABLED=false` + allow plaintext |
+| TLS / dial fail | missing client cert or wrong CA |
+| field ignored | try snake_case (`chain_id`); parser accepts both |
