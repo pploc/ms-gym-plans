@@ -143,6 +143,18 @@ afterEvaluate {
 
 check.dependsOn jacocoTestCoverageVerification
 
+tasks.register('startEnv', Exec) {
+    group = 'environment'
+    description = 'Start local Docker testing environment (PostgreSQL)'
+    commandLine 'docker', 'compose', 'up', '-d'
+}
+
+tasks.register('stopEnv', Exec) {
+    group = 'environment'
+    description = 'Stop local Docker testing environment'
+    commandLine 'docker', 'compose', 'down'
+}
+
 spotless {
     java {
         target 'src/*/java/**/*.java'

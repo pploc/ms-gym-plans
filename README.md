@@ -27,8 +27,14 @@ Public HTTP request/response bodies are generated protobuf messages (`com.gym.pr
 export GITHUB_TOKEN=...
 export GITHUB_ACTOR=pploc
 
-docker compose up -d
+./gradlew startEnv
 ./gradlew bootRun
+```
+
+Stop deps:
+
+```bash
+./gradlew stopEnv
 ```
 
 - HTTP (public catalog): `http://localhost:8080`
