@@ -2,10 +2,10 @@ package com.gym.plans.adapter.in.http;
 
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
-import com.gym.plans.adapter.in.http.dto.GymLocationHttpDtos.CreateGymLocationRequest;
-import com.gym.plans.adapter.in.http.dto.GymLocationHttpDtos.GymLocationResponse;
-import com.gym.plans.adapter.in.http.dto.GymLocationHttpDtos.GymLocationsResponse;
-import com.gym.plans.adapter.in.http.dto.GymLocationHttpDtos.UpdateGymLocationRequest;
+import com.gym.plans.adapter.in.http.dto.CreateGymLocationRequest;
+import com.gym.plans.adapter.in.http.dto.GymLocationResponse;
+import com.gym.plans.adapter.in.http.dto.GymLocationsResponse;
+import com.gym.plans.adapter.in.http.dto.UpdateGymLocationRequest;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.domain.dto.GymLocationDto;
 import lombok.RequiredArgsConstructor;

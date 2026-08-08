@@ -2,10 +2,10 @@ package com.gym.plans.adapter.in.http;
 
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
-import com.gym.plans.adapter.in.http.dto.MembershipPlanHttpDtos.CreateMembershipPlanRequest;
-import com.gym.plans.adapter.in.http.dto.MembershipPlanHttpDtos.MembershipPlanResponse;
-import com.gym.plans.adapter.in.http.dto.MembershipPlanHttpDtos.MembershipPlansResponse;
-import com.gym.plans.adapter.in.http.dto.MembershipPlanHttpDtos.UpdateMembershipPlanRequest;
+import com.gym.plans.adapter.in.http.dto.CreateMembershipPlanRequest;
+import com.gym.plans.adapter.in.http.dto.MembershipPlanResponse;
+import com.gym.plans.adapter.in.http.dto.MembershipPlansResponse;
+import com.gym.plans.adapter.in.http.dto.UpdateMembershipPlanRequest;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.MembershipPlanDto;
 import lombok.RequiredArgsConstructor;
