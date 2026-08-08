@@ -41,7 +41,7 @@ class PlansHttpControllerUnitTest {
     private MembershipPlanHttpController membershipPlanHttpController;
 
     @Test
-    void givenCreateGymBody_whenCreate_thenMapsSnakeCaseResponse() {
+    void givenCreateGymBody_whenCreate_thenMapsProtoResponse() {
         // Given
         when(gymLocationService.create("c1", "Central", "1 Main", "Hanoi"))
                 .thenReturn(new GymLocationDto(

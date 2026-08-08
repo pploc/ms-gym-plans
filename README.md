@@ -15,11 +15,11 @@ Plans catalog service for gym locations and membership plans.
 ## Dependencies
 
 - Java 26, Spring Boot 4.1
-- `com.gym:common-java:2.0.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
+- `com.gym:common-java:2.0.2` (includes `ProtobufJsonHttpMessageConverter` auto-config)
 - `com.gym.proto:gym-proto-java:3.0.0`
 - PostgreSQL (`plans_db`)
 
-Public HTTP request/response bodies are generated protobuf messages (`com.gym.proto.plans.v1.*`) with snake_case JSON field names. Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
+Public HTTP request/response bodies are generated protobuf messages (`com.gym.proto.plans.v1.*`) with camelCase JSON field names (`chainId`, `priceVnd`). Path segments stay contract routes (`/gyms/{gym_id}/plans`). Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
 
 ## Run locally
 

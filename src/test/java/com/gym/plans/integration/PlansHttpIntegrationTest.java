@@ -37,11 +37,11 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"chain_id":"chain-http","name":"HTTP Gym","address":"1 St","city":"Hanoi"}
+                                {"chainId":"chain-http","name":"HTTP Gym","address":"1 St","city":"Hanoi"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").isNotEmpty())
-                .andExpect(jsonPath("$.chain_id").value("chain-http"))
+                .andExpect(jsonPath("$.chainId").value("chain-http"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andReturn();
 
@@ -54,12 +54,12 @@ class PlansHttpIntegrationTest {
                         .header("x-gym-id", gymId)
                         .content(
                                 """
-                                {"name":"Monthly","plan_type":"MONTHLY","duration_days":30,"price_vnd":450000,"description":"base"}
+                                {"name":"Monthly","planType":"MONTHLY","durationDays":30,"priceVnd":450000,"description":"base"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.gym_id").value(gymId))
-                .andExpect(jsonPath("$.plan_type").value("MONTHLY"))
-                .andExpect(jsonPath("$.duration_days").value(30))
+                .andExpect(jsonPath("$.gymId").value(gymId))
+                .andExpect(jsonPath("$.planType").value("MONTHLY"))
+                .andExpect(jsonPath("$.durationDays").value(30))
                 .andExpect(jsonPath("$.active").value(true))
                 .andReturn();
 
@@ -93,7 +93,7 @@ class PlansHttpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(
                                 """
-                                {"chain_id":"c","name":"n","address":"a","city":"Hanoi"}
+                                {"chainId":"c","name":"n","address":"a","city":"Hanoi"}
                                 """))
                 .andExpect(status().isUnauthorized());
     }
@@ -106,7 +106,7 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "CUSTOMER")
                         .content(
                                 """
-                                {"chain_id":"c","name":"n","address":"a","city":"Hanoi"}
+                                {"chainId":"c","name":"n","address":"a","city":"Hanoi"}
                                 """))
                 .andExpect(status().isForbidden());
     }
@@ -120,7 +120,7 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"chain_id":"c","name":"G","address":"a","city":"Hanoi"}
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -134,7 +134,7 @@ class PlansHttpIntegrationTest {
                         .header("x-gym-id", "other-gym")
                         .content(
                                 """
-                                {"name":"Monthly","plan_type":"MONTHLY","duration_days":30,"price_vnd":1}
+                                {"name":"Monthly","planType":"MONTHLY","durationDays":30,"priceVnd":1}
                                 """))
                 .andExpect(status().isForbidden());
     }
@@ -160,7 +160,7 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"chain_id":"c","name":"G","address":"a","city":"Hanoi"}
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -173,7 +173,7 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"name":"X","plan_type":"WEEKLY","duration_days":7,"price_vnd":1}
+                                {"name":"X","planType":"WEEKLY","durationDays":7,"priceVnd":1}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_ARGUMENT"));
@@ -187,7 +187,7 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"chain_id":"c","name":"G","address":"a","city":"Hanoi"}
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -199,7 +199,7 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"chain_id":"c","name":"G","address":"a","city":"Hanoi","status":"CLOSED"}
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi","status":"CLOSED"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CLOSED"));

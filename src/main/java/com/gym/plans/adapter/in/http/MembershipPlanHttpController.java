@@ -73,7 +73,7 @@ public class MembershipPlanHttpController {
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public MembershipPlansResponse list(
             @PathVariable("gym_id") String gymId,
-            @RequestParam(value = "plan_type", required = false) String planType,
+            @RequestParam(value = "planType", required = false) String planType,
             @RequestParam(value = "active", required = false) Boolean active) {
         return MembershipPlansResponse.newBuilder()
                 .addAllPlans(membershipPlanService.list(gymId, planType, active).stream()

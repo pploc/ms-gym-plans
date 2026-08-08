@@ -62,7 +62,7 @@ public class GymLocationHttpController {
     @GetMapping
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public GymLocationsResponse list(
-            @RequestParam(value = "chain_id", required = false) String chainId,
+            @RequestParam(value = "chainId", required = false) String chainId,
             @RequestParam(value = "city", required = false) String city,
             @RequestParam(value = "status", required = false) String status) {
         return GymLocationsResponse.newBuilder()
