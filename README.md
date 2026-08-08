@@ -15,9 +15,11 @@ Plans catalog service for gym locations and membership plans.
 ## Dependencies
 
 - Java 26, Spring Boot 4.1
-- `com.gym:common-java:2.0.0`
+- `com.gym:common-java:2.0.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
 - `com.gym.proto:gym-proto-java:3.0.0`
 - PostgreSQL (`plans_db`)
+
+Public HTTP request/response bodies are generated protobuf messages (`com.gym.proto.plans.v1.*`) with snake_case JSON field names. Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
 
 ## Run locally
 
@@ -49,11 +51,16 @@ Kong injects trusted headers: `x-user-id`, `x-user-role`, `x-gym-id`, `x-members
 
 Internal RPCs have **no** HTTP mapping.
 
-## Tests
+## Tests and CI
 
 ```bash
-./gradlew clean check
+./gradlew clean build
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) reuses `gym-infra`:
+
+- `java-ci.yml@develop` with `gradle_args: build`
+- `docker-build.yml@develop` for `ms-gym-plans` image push on develop/main/feature/hotfix
 
 ## Config
 
