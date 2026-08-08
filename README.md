@@ -5,11 +5,12 @@ Plans catalog service for gym locations and membership plans.
 ## Scope (G7 / V1)
 
 - Owns `plans_db` tables `gym_locations` and `membership_plans`
-- Public gRPC + HTTP gateway routes for catalog CRUD/list
-- Internal mTLS-only RPCs:
+- Public **Spring HTTP** on `8080` for catalog CRUD/list (Kong target)
+- Native gRPC on `50051` for the same public methods plus internal workload RPCs:
   - `GetActiveGym` — Identifier only
   - `ResolvePurchasablePlan` — Member only
-- No Kafka, outbox, cache, scheduler, Redis, or Payment client
+- No Kafka, outbox, cache, scheduler, Redis, Payment client
+- No separate Go gateway process — Java service serves HTTP and gRPC
 
 ## Dependencies
 
@@ -21,7 +22,6 @@ Plans catalog service for gym locations and membership plans.
 ## Run locally
 
 ```bash
-# token for GitHub Packages
 export GITHUB_TOKEN=...
 export GITHUB_ACTOR=pploc
 
@@ -29,19 +29,30 @@ docker compose up -d
 ./gradlew bootRun
 ```
 
-Gateway (separate process):
+- HTTP (public catalog): `http://localhost:8080`
+- gRPC (public + internal): `localhost:50051`
 
-```bash
-cd gateway
-go test ./...
-HTTP_ADDR=:8080 PLANS_GRPC_ADDR=127.0.0.1:50051 go run ./cmd/server
-```
+## Public HTTP routes
+
+| Method | Path | Roles |
+|--------|------|--------|
+| `POST` | `/api/v1/gyms` | `SUPER_ADMIN` |
+| `PUT` | `/api/v1/gyms/{id}` | `ADMIN`, `SUPER_ADMIN` |
+| `GET` | `/api/v1/gyms` | authenticated |
+| `GET` | `/api/v1/gyms/{id}` | authenticated |
+| `POST` | `/api/v1/gyms/{gym_id}/plans` | `ADMIN`, `SUPER_ADMIN` |
+| `PUT` | `/api/v1/plans/{id}` | `ADMIN`, `SUPER_ADMIN` |
+| `GET` | `/api/v1/gyms/{gym_id}/plans` | authenticated |
+| `GET` | `/api/v1/plans/{id}` | authenticated |
+
+Kong injects trusted headers: `x-user-id`, `x-user-role`, `x-gym-id`, `x-membership-status`.
+
+Internal RPCs have **no** HTTP mapping.
 
 ## Tests
 
 ```bash
 ./gradlew clean check
-cd gateway && go test ./...
 ```
 
 ## Config
@@ -49,7 +60,8 @@ cd gateway && go test ./...
 | Env | Default | Purpose |
 |-----|---------|---------|
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5433/plans_db` | DB |
-| `GRPC_SERVER_PORT` | `50051` | Plans gRPC |
+| `SERVER_PORT` | `8080` | Public HTTP |
+| `GRPC_SERVER_PORT` | `50051` | gRPC |
 | `PLANS_GRPC_TLS_ENABLED` | `true` | mTLS |
 | `PLANS_GRPC_ALLOW_PLAINTEXT` | `false` | test-only plaintext |
 | `PLANS_GRPC_SERVER_CERT` / `KEY` / `CLIENT_CA` | empty | mTLS material |
