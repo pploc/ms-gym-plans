@@ -33,8 +33,6 @@ if (gprKey == null || gprKey.isEmpty()) {
 }
 
 repositories {
-    // Temporary until common-java 2.0.1 publishes ProtobufJsonHttpMessageConverter auto-config.
-    mavenLocal()
     mavenCentral()
     maven { url 'https://packages.confluent.io/maven/' }
     maven {
@@ -63,7 +61,7 @@ def grpcVersion = '1.68.1'
 def testcontainersVersion = '1.20.1'
 
 dependencies {
-    implementation 'com.gym:common-java:2.0.0-SNAPSHOT'
+    implementation 'com.gym:common-java:2.0.1'
     implementation 'com.gym.proto:gym-proto-java:3.0.0'
     implementation('com.google.protobuf:protobuf-java') {
         version { strictly '3.25.4' }
