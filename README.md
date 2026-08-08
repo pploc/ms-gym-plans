@@ -31,14 +31,28 @@ export GITHUB_ACTOR=pploc
 ./gradlew bootRun
 ```
 
+`bootRun` auto-runs `ensureLocalCerts` → `certs/local/` when missing. Defaults:
+
+- gRPC mTLS on `:50051` (`certs/local/server.*` + `ca.crt`)
+- HTTP catalog on `:8080` (claim headers, no JWT)
+
 Stop deps:
 
 ```bash
 ./gradlew stopEnv
 ```
 
-- HTTP (public catalog): `http://localhost:8080`
-- gRPC (public + internal): `localhost:50051`
+- HTTP: `http://localhost:8080`
+- gRPC mTLS: `localhost:50051` with `certs/local/client-postman.*`
+- Bodies / Postman: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
+
+Plaintext override (skip mTLS):
+
+```bash
+export PLANS_GRPC_TLS_ENABLED=false
+export PLANS_GRPC_ALLOW_PLAINTEXT=true
+./gradlew bootRun
+```
 
 ## Public HTTP routes
 
@@ -56,6 +70,10 @@ Stop deps:
 Kong injects trusted headers: `x-user-id`, `x-user-role`, `x-gym-id`, `x-membership-status`.
 
 Internal RPCs have **no** HTTP mapping.
+
+## Local gRPC / Postman
+
+See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for claim headers and full request bodies (gRPC + HTTP).
 
 ## Tests and CI
 
@@ -77,4 +95,8 @@ GitHub Actions (`.github/workflows/ci.yml`) reuses `gym-infra`:
 | `GRPC_SERVER_PORT` | `50051` | gRPC |
 | `PLANS_GRPC_TLS_ENABLED` | `true` | mTLS |
 | `PLANS_GRPC_ALLOW_PLAINTEXT` | `false` | test-only plaintext |
-| `PLANS_GRPC_SERVER_CERT` / `KEY` / `CLIENT_CA` | empty | mTLS material |
+| `PLANS_GRPC_SERVER_CERT` | `certs/local/server.crt` | server chain; **prod must override** (secret mount) |
+| `PLANS_GRPC_SERVER_KEY` | `certs/local/server.key` | server key; **prod must override** |
+| `PLANS_GRPC_CLIENT_CA` | `certs/local/ca.crt` | client trust CA; **prod must override** |
+
+Local defaults point at `certs/local/` (gitignored; `bootRun` → `ensureLocalCerts`). Never bake those files into the image. Production always sets the three `PLANS_GRPC_*` path env vars to real certs.

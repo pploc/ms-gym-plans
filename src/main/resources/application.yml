@@ -25,11 +25,13 @@ grpc:
   server:
     port: ${GRPC_SERVER_PORT:50051}
     tls:
+      # Local default: mTLS with certs/local from ./scripts/generate-local-certs.sh (bootRun ensures).
+      # Prod must set PLANS_GRPC_* paths (or mount) and never ship local CA.
       enabled: ${PLANS_GRPC_TLS_ENABLED:true}
       allow-plaintext: ${PLANS_GRPC_ALLOW_PLAINTEXT:false}
-      certificate-chain: ${PLANS_GRPC_SERVER_CERT:}
-      private-key: ${PLANS_GRPC_SERVER_KEY:}
-      client-ca: ${PLANS_GRPC_CLIENT_CA:}
+      certificate-chain: ${PLANS_GRPC_SERVER_CERT:certs/local/server.crt}
+      private-key: ${PLANS_GRPC_SERVER_KEY:certs/local/server.key}
+      client-ca: ${PLANS_GRPC_CLIENT_CA:certs/local/ca.crt}
 
 management:
   endpoints:
