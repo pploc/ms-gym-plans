@@ -2,6 +2,7 @@ package com.gym.plans.unit.service;
 
 import com.gym.plans.adapter.out.persistence.entity.GymLocationEntity;
 import com.gym.plans.adapter.out.persistence.entity.MembershipPlanEntity;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.adapter.out.persistence.repository.MembershipPlanJpaRepository;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
@@ -10,7 +11,7 @@ import com.gym.plans.domain.model.GymLocationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -30,7 +31,7 @@ class MembershipPlanPriceUnitTest {
     @Mock
     private GymLocationService gymLocationService;
 
-    @InjectMocks
+    private final MembershipPlanMapper membershipPlanMapper = Mappers.getMapper(MembershipPlanMapper.class);
     private MembershipPlanService membershipPlanService;
 
     private String gymId;
@@ -38,6 +39,7 @@ class MembershipPlanPriceUnitTest {
 
     @BeforeEach
     void setUp() {
+        membershipPlanService = new MembershipPlanService(planRepository, gymLocationService, membershipPlanMapper);
         gymId = UUID.randomUUID().toString();
         gym = new GymLocationEntity();
         gym.setId(gymId);

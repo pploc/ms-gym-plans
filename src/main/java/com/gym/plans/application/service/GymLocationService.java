@@ -2,6 +2,7 @@ package com.gym.plans.application.service;
 
 import com.gym.common.error.NotFoundException;
 import com.gym.plans.adapter.out.persistence.entity.GymLocationEntity;
+import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
 import com.gym.plans.adapter.out.persistence.repository.GymLocationJpaRepository;
 import com.gym.plans.adapter.out.persistence.specification.GymLocationSpecifications;
 import com.gym.plans.domain.dto.GymLocationDto;
@@ -19,6 +20,7 @@ import java.util.List;
 public class GymLocationService {
 
     private final GymLocationJpaRepository gymLocationRepository;
+    private final GymLocationMapper gymLocationMapper;
 
     @Transactional
     public GymLocationDto create(String chainId, String name, String address, String city) {
@@ -33,7 +35,7 @@ public class GymLocationService {
         entity.setAddress(address.trim());
         entity.setCity(city.trim());
         entity.setStatus(GymLocationStatus.ACTIVE);
-        return toDto(gymLocationRepository.save(entity));
+        return gymLocationMapper.toDto(gymLocationRepository.save(entity));
     }
 
     @Transactional
@@ -51,12 +53,12 @@ public class GymLocationService {
         entity.setAddress(address.trim());
         entity.setCity(city.trim());
         entity.setStatus(GymLocationStatus.fromWire(status));
-        return toDto(gymLocationRepository.save(entity));
+        return gymLocationMapper.toDto(gymLocationRepository.save(entity));
     }
 
     @Transactional(readOnly = true)
     public GymLocationDto get(String id) {
-        return toDto(requireGym(id));
+        return gymLocationMapper.toDto(requireGym(id));
     }
 
     @Transactional(readOnly = true)
@@ -65,7 +67,7 @@ public class GymLocationService {
         return gymLocationRepository
                 .findAll(GymLocationSpecifications.withFilters(chainId, city, parsedStatus))
                 .stream()
-                .map(this::toDto)
+                .map(gymLocationMapper::toDto)
                 .toList();
     }
 
@@ -75,7 +77,7 @@ public class GymLocationService {
         if (entity.getStatus() != GymLocationStatus.ACTIVE) {
             throw new PlansDomainException(PlansErrorCode.GYM_INACTIVE, "Gym is not active: " + gymId);
         }
-        return toDto(entity);
+        return gymLocationMapper.toDto(entity);
     }
 
     @Transactional(readOnly = true)
@@ -84,16 +86,6 @@ public class GymLocationService {
         return gymLocationRepository
                 .findById(id.trim())
                 .orElseThrow(() -> new NotFoundException(PlansErrorCode.GYM_NOT_FOUND, "Gym not found: " + id));
-    }
-
-    private GymLocationDto toDto(GymLocationEntity entity) {
-        return new GymLocationDto(
-                entity.getId(),
-                entity.getChainId(),
-                entity.getName(),
-                entity.getAddress(),
-                entity.getCity(),
-                entity.getStatus());
     }
 
     private static void requireText(String value, String field) {

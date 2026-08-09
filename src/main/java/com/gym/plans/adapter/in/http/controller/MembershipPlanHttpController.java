@@ -2,7 +2,7 @@ package com.gym.plans.adapter.in.http.controller;
 
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
-import com.gym.plans.adapter.in.grpc.PlansResponseMapper;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.MembershipPlanDto;
 import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MembershipPlanHttpController {
 
     private final MembershipPlanService membershipPlanService;
+    private final MembershipPlanMapper membershipPlanMapper;
 
     @PostMapping("/api/v1/gyms/{gym_id}/plans")
     @ResponseStatus(HttpStatus.OK)
@@ -42,7 +43,7 @@ public class MembershipPlanHttpController {
                 request.getPriceVnd(),
                 request.getDescription(),
                 active);
-        return PlansResponseMapper.toPlanResponse(dto);
+        return membershipPlanMapper.toResponse(dto);
     }
 
     @PutMapping("/api/v1/plans/{id}")
@@ -60,13 +61,13 @@ public class MembershipPlanHttpController {
                 request.getPriceVnd(),
                 request.getDescription(),
                 request.getActive());
-        return PlansResponseMapper.toPlanResponse(dto);
+        return membershipPlanMapper.toResponse(dto);
     }
 
     @GetMapping("/api/v1/plans/{id}")
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public MembershipPlanResponse get(@PathVariable("id") String id) {
-        return PlansResponseMapper.toPlanResponse(membershipPlanService.get(id));
+        return membershipPlanMapper.toResponse(membershipPlanService.get(id));
     }
 
     @GetMapping("/api/v1/gyms/{gym_id}/plans")
@@ -77,7 +78,7 @@ public class MembershipPlanHttpController {
             @RequestParam(value = "active", required = false) Boolean active) {
         return MembershipPlansResponse.newBuilder()
                 .addAllPlans(membershipPlanService.list(gymId, planType, active).stream()
-                        .map(PlansResponseMapper::toPlanResponse)
+                        .map(membershipPlanMapper::toResponse)
                         .toList())
                 .build();
     }

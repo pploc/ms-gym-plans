@@ -3,6 +3,8 @@ package com.gym.plans.unit.grpc;
 import com.gym.common.grpc.security.GrpcSecurityContext;
 import com.gym.common.grpc.security.UserClaims;
 import com.gym.plans.adapter.in.grpc.PlansGrpcHandler;
+import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.GymLocationDto;
@@ -30,7 +32,7 @@ import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -55,14 +57,21 @@ class PlansGrpcHandlerUnitTest {
     @Mock
     private MembershipPlanService membershipPlanService;
 
-    @InjectMocks
+    private final GymLocationMapper gymLocationMapper = Mappers.getMapper(GymLocationMapper.class);
+    private final MembershipPlanMapper membershipPlanMapper = Mappers.getMapper(MembershipPlanMapper.class);
     private PlansGrpcHandler handler;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        handler = new PlansGrpcHandler(
+                gymLocationService, membershipPlanService, gymLocationMapper, membershipPlanMapper);
+    }
 
     @Test
     void givenCreateGymRequest_whenCreateGymLocation_thenMapsResponse() {
         // Given
         GymLocationDto dto =
-                new GymLocationDto("g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE);
+                new GymLocationDto("g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null);
         when(gymLocationService.create("c1", "Central", "1 Main", "Hanoi")).thenReturn(dto);
         @SuppressWarnings("unchecked")
         StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
@@ -89,7 +98,7 @@ class PlansGrpcHandlerUnitTest {
     void givenListPlansRequest_whenListMembershipPlans_thenMapsOptionalActive() {
         // Given
         MembershipPlanDto dto =
-                new MembershipPlanDto("p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true);
+                new MembershipPlanDto("p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null);
         when(membershipPlanService.list("g1", "MONTHLY", true)).thenReturn(List.of(dto));
         @SuppressWarnings("unchecked")
         StreamObserver<MembershipPlansResponse> observer = mock(StreamObserver.class);
@@ -115,7 +124,7 @@ class PlansGrpcHandlerUnitTest {
     void givenCreatePlanWithoutActive_whenCreateMembershipPlan_thenPassesNullActive() {
         // Given
         MembershipPlanDto dto =
-                new MembershipPlanDto("p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true);
+                new MembershipPlanDto("p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null);
         when(membershipPlanService.create(eq("g1"), eq("Monthly"), eq("MONTHLY"), eq(30), eq(100L), eq("d"), isNull()))
                 .thenReturn(dto);
         @SuppressWarnings("unchecked")
@@ -163,7 +172,7 @@ class PlansGrpcHandlerUnitTest {
     void givenActiveGym_whenGetActiveGym_thenMapsResponse() {
         // Given
         GymLocationDto dto =
-                new GymLocationDto("g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE);
+                new GymLocationDto("g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null);
         when(gymLocationService.getActive("g1")).thenReturn(dto);
         @SuppressWarnings("unchecked")
         StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
@@ -181,7 +190,7 @@ class PlansGrpcHandlerUnitTest {
         // Given
         when(gymLocationService.list("", "", ""))
                 .thenReturn(List.of(
-                        new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE)));
+                        new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null)));
         @SuppressWarnings("unchecked")
         StreamObserver<GymLocationsResponse> observer = mock(StreamObserver.class);
 
@@ -199,7 +208,7 @@ class PlansGrpcHandlerUnitTest {
         // Given
         when(membershipPlanService.get("p1"))
                 .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true));
+                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
         @SuppressWarnings("unchecked")
         StreamObserver<MembershipPlanResponse> observer = mock(StreamObserver.class);
 
@@ -217,7 +226,7 @@ class PlansGrpcHandlerUnitTest {
     void givenGetGym_whenGetGymLocation_thenMapsResponse() {
         // Given
         when(gymLocationService.get("g1"))
-                .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE));
+                .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null));
         @SuppressWarnings("unchecked")
         StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
 
@@ -233,10 +242,10 @@ class PlansGrpcHandlerUnitTest {
         // Given
         when(membershipPlanService.get("p1"))
                 .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true));
+                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
         when(membershipPlanService.update("p1", "Yearly", "YEARLY", 365, 200L, "y", false))
                 .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "y", false));
+                        "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "y", false, null, null));
         @SuppressWarnings("unchecked")
         StreamObserver<MembershipPlanResponse> observer = mock(StreamObserver.class);
 
@@ -261,9 +270,9 @@ class PlansGrpcHandlerUnitTest {
     void givenUpdateGym_whenUpdateGymLocation_thenMapsResponse() {
         // Given
         when(gymLocationService.get("g1"))
-                .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE));
+                .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null));
         when(gymLocationService.update("g1", "c1", "B", "2", "SG", "CLOSED"))
-                .thenReturn(new GymLocationDto("g1", "c1", "B", "2", "SG", GymLocationStatus.CLOSED));
+                .thenReturn(new GymLocationDto("g1", "c1", "B", "2", "SG", GymLocationStatus.CLOSED, null, null));
         @SuppressWarnings("unchecked")
         StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
 

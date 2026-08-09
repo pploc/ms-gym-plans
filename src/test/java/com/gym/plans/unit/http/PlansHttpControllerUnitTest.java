@@ -3,6 +3,8 @@ package com.gym.plans.unit.http;
 import com.gym.common.grpc.security.GrpcSecurityContext;
 import com.gym.common.grpc.security.UserClaims;
 import com.gym.plans.adapter.in.http.controller.GymLocationHttpController;
+import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.adapter.in.http.controller.MembershipPlanHttpController;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
@@ -18,7 +20,7 @@ import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import io.grpc.Context;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -36,18 +38,24 @@ class PlansHttpControllerUnitTest {
     @Mock
     private MembershipPlanService membershipPlanService;
 
-    @InjectMocks
+    private final GymLocationMapper gymLocationMapper = Mappers.getMapper(GymLocationMapper.class);
+    private final MembershipPlanMapper membershipPlanMapper = Mappers.getMapper(MembershipPlanMapper.class);
     private GymLocationHttpController gymLocationHttpController;
-
-    @InjectMocks
     private MembershipPlanHttpController membershipPlanHttpController;
+
+    @org.junit.jupiter.api.BeforeEach
+    void setUp() {
+        gymLocationHttpController = new GymLocationHttpController(gymLocationService, gymLocationMapper);
+        membershipPlanHttpController =
+                new MembershipPlanHttpController(membershipPlanService, membershipPlanMapper);
+    }
 
     @Test
     void givenCreateGymBody_whenCreate_thenMapsProtoResponse() {
         // Given
         when(gymLocationService.create("c1", "Central", "1 Main", "Hanoi"))
                 .thenReturn(new GymLocationDto(
-                        "g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE));
+                        "g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null));
 
         // When
         GymLocationResponse response = gymLocationHttpController.create(
@@ -69,7 +77,7 @@ class PlansHttpControllerUnitTest {
         // Given
         when(membershipPlanService.create("g1", "Monthly", "MONTHLY", 30, 100L, "d", null))
                 .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true));
+                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
 
         // When
         MembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.create(
@@ -94,10 +102,10 @@ class PlansHttpControllerUnitTest {
         // Given
         when(membershipPlanService.get("p1"))
                 .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true));
+                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
         when(membershipPlanService.update("p1", "Yearly", "YEARLY", 365, 200L, "yr", false))
                 .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "yr", false));
+                        "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "yr", false, null, null));
 
         // When
         MembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.update(

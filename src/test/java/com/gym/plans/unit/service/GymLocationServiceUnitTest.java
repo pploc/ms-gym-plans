@@ -2,6 +2,7 @@ package com.gym.plans.unit.service;
 
 import com.gym.common.error.NotFoundException;
 import com.gym.plans.adapter.out.persistence.entity.GymLocationEntity;
+import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
 import com.gym.plans.adapter.out.persistence.repository.GymLocationJpaRepository;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.domain.dto.GymLocationDto;
@@ -12,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
@@ -33,7 +34,7 @@ class GymLocationServiceUnitTest {
     @Mock
     private GymLocationJpaRepository gymLocationRepository;
 
-    @InjectMocks
+    private final GymLocationMapper gymLocationMapper = Mappers.getMapper(GymLocationMapper.class);
     private GymLocationService gymLocationService;
 
     private String gymId;
@@ -41,6 +42,7 @@ class GymLocationServiceUnitTest {
 
     @BeforeEach
     void setUp() {
+        gymLocationService = new GymLocationService(gymLocationRepository, gymLocationMapper);
         gymId = UUID.randomUUID().toString();
         location = new GymLocationEntity();
         location.setId(gymId);

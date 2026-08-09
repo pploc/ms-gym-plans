@@ -3,6 +3,7 @@ package com.gym.plans.unit.service;
 import com.gym.common.error.NotFoundException;
 import com.gym.plans.adapter.out.persistence.entity.GymLocationEntity;
 import com.gym.plans.adapter.out.persistence.entity.MembershipPlanEntity;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.adapter.out.persistence.repository.MembershipPlanJpaRepository;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
@@ -15,7 +16,7 @@ import com.gym.plans.domain.model.PlanType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.jpa.domain.Specification;
@@ -42,7 +43,7 @@ class MembershipPlanServiceUnitTest {
     @Mock
     private GymLocationService gymLocationService;
 
-    @InjectMocks
+    private final MembershipPlanMapper membershipPlanMapper = Mappers.getMapper(MembershipPlanMapper.class);
     private MembershipPlanService membershipPlanService;
 
     private String gymId;
@@ -52,6 +53,7 @@ class MembershipPlanServiceUnitTest {
 
     @BeforeEach
     void setUp() {
+        membershipPlanService = new MembershipPlanService(planRepository, gymLocationService, membershipPlanMapper);
         gymId = UUID.randomUUID().toString();
         planId = UUID.randomUUID().toString();
 

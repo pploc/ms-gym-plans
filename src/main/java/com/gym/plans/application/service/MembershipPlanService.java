@@ -3,6 +3,7 @@ package com.gym.plans.application.service;
 import com.gym.common.error.NotFoundException;
 import com.gym.plans.adapter.out.persistence.entity.GymLocationEntity;
 import com.gym.plans.adapter.out.persistence.entity.MembershipPlanEntity;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.adapter.out.persistence.repository.MembershipPlanJpaRepository;
 import com.gym.plans.adapter.out.persistence.specification.MembershipPlanSpecifications;
 import com.gym.plans.domain.dto.MembershipPlanDto;
@@ -23,6 +24,7 @@ public class MembershipPlanService {
 
     private final MembershipPlanJpaRepository planRepository;
     private final GymLocationService gymLocationService;
+    private final MembershipPlanMapper membershipPlanMapper;
 
     @Transactional
     public MembershipPlanDto create(
@@ -46,7 +48,7 @@ public class MembershipPlanService {
         entity.setPriceVnd(priceVnd);
         entity.setDescription(description == null ? "" : description.trim());
         entity.setActive(active == null || active);
-        return toDto(planRepository.save(entity));
+        return membershipPlanMapper.toDto(planRepository.save(entity));
     }
 
     @Transactional
@@ -69,12 +71,12 @@ public class MembershipPlanService {
         entity.setPriceVnd(priceVnd);
         entity.setDescription(description == null ? "" : description.trim());
         entity.setActive(active);
-        return toDto(planRepository.save(entity));
+        return membershipPlanMapper.toDto(planRepository.save(entity));
     }
 
     @Transactional(readOnly = true)
     public MembershipPlanDto get(String id) {
-        return toDto(requirePlan(id));
+        return membershipPlanMapper.toDto(requirePlan(id));
     }
 
     @Transactional(readOnly = true)
@@ -85,7 +87,7 @@ public class MembershipPlanService {
         return planRepository
                 .findAll(MembershipPlanSpecifications.withFilters(gymId, type, active))
                 .stream()
-                .map(this::toDto)
+                .map(membershipPlanMapper::toDto)
                 .toList();
     }
 
@@ -105,8 +107,7 @@ public class MembershipPlanService {
             throw new PlansDomainException(PlansErrorCode.PLAN_INACTIVE, "Plan is not active: " + planId);
         }
 
-        return new ResolvedPlanDto(
-                plan.getId(), plan.getGymId(), plan.getPlanType(), plan.getDurationDays(), plan.getPriceVnd());
+        return membershipPlanMapper.toResolvedDto(plan);
     }
 
     @Transactional(readOnly = true)
@@ -132,18 +133,6 @@ public class MembershipPlanService {
 
     private static Integer normalizeDuration(PlanType type, Integer durationDays) {
         return type.requiresDuration() ? durationDays : null;
-    }
-
-    private MembershipPlanDto toDto(MembershipPlanEntity entity) {
-        return new MembershipPlanDto(
-                entity.getId(),
-                entity.getGymId(),
-                entity.getName(),
-                entity.getPlanType(),
-                entity.getDurationDays(),
-                entity.getPriceVnd(),
-                entity.getDescription(),
-                entity.isActive());
     }
 
     private static void requireText(String value, String field) {

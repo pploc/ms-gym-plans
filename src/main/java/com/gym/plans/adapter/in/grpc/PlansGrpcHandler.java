@@ -3,6 +3,8 @@ package com.gym.plans.adapter.in.grpc;
 import com.gym.common.grpc.security.RequirePolicy;
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.common.grpc.security.RpcPolicyKind;
+import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
+import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.GymLocationDto;
@@ -34,6 +36,8 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
 
     private final GymLocationService gymLocationService;
     private final MembershipPlanService membershipPlanService;
+    private final GymLocationMapper gymLocationMapper;
+    private final MembershipPlanMapper membershipPlanMapper;
 
     @Override
     @RequireRole("SUPER_ADMIN")
@@ -41,7 +45,7 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
             CreateGymLocationRequest request, StreamObserver<GymLocationResponse> responseObserver) {
         GymLocationDto dto = gymLocationService.create(
                 request.getChainId(), request.getName(), request.getAddress(), request.getCity());
-        complete(responseObserver, PlansResponseMapper.toGymResponse(dto));
+        complete(responseObserver, gymLocationMapper.toResponse(dto));
     }
 
     @Override
@@ -57,13 +61,13 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
                 request.getAddress(),
                 request.getCity(),
                 request.getStatus());
-        complete(responseObserver, PlansResponseMapper.toGymResponse(dto));
+        complete(responseObserver, gymLocationMapper.toResponse(dto));
     }
 
     @Override
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public void getGymLocation(GetGymLocationRequest request, StreamObserver<GymLocationResponse> responseObserver) {
-        complete(responseObserver, PlansResponseMapper.toGymResponse(gymLocationService.get(request.getId())));
+        complete(responseObserver, gymLocationMapper.toResponse(gymLocationService.get(request.getId())));
     }
 
     @Override
@@ -73,7 +77,7 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
         var locations = gymLocationService
                 .list(request.getChainId(), request.getCity(), request.getStatus())
                 .stream()
-                .map(PlansResponseMapper::toGymResponse)
+                .map(gymLocationMapper::toResponse)
                 .toList();
         complete(responseObserver, GymLocationsResponse.newBuilder().addAllLocations(locations).build());
     }
@@ -93,7 +97,7 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
                 request.getPriceVnd(),
                 request.getDescription(),
                 active);
-        complete(responseObserver, PlansResponseMapper.toPlanResponse(dto));
+        complete(responseObserver, membershipPlanMapper.toResponse(dto));
     }
 
     @Override
@@ -111,14 +115,14 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
                 request.getPriceVnd(),
                 request.getDescription(),
                 request.getActive());
-        complete(responseObserver, PlansResponseMapper.toPlanResponse(dto));
+        complete(responseObserver, membershipPlanMapper.toResponse(dto));
     }
 
     @Override
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public void getMembershipPlan(
             GetMembershipPlanRequest request, StreamObserver<MembershipPlanResponse> responseObserver) {
-        complete(responseObserver, PlansResponseMapper.toPlanResponse(membershipPlanService.get(request.getId())));
+        complete(responseObserver, membershipPlanMapper.toResponse(membershipPlanService.get(request.getId())));
     }
 
     @Override
@@ -129,7 +133,7 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
         var plans = membershipPlanService
                 .list(request.getGymId(), request.getPlanType(), active)
                 .stream()
-                .map(PlansResponseMapper::toPlanResponse)
+                .map(membershipPlanMapper::toResponse)
                 .toList();
         complete(responseObserver, MembershipPlansResponse.newBuilder().addAllPlans(plans).build());
     }
@@ -137,7 +141,7 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
     @Override
     @RequirePolicy(RpcPolicyKind.INTERNAL_WORKLOAD)
     public void getActiveGym(GetActiveGymRequest request, StreamObserver<GymLocationResponse> responseObserver) {
-        complete(responseObserver, PlansResponseMapper.toGymResponse(gymLocationService.getActive(request.getGymId())));
+        complete(responseObserver, gymLocationMapper.toResponse(gymLocationService.getActive(request.getGymId())));
     }
 
     @Override
@@ -146,7 +150,7 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
             ResolvePurchasablePlanRequest request, StreamObserver<ResolvedPlanResponse> responseObserver) {
         ResolvedPlanDto dto =
                 membershipPlanService.resolvePurchasable(request.getPlanId(), request.getGymId());
-        complete(responseObserver, PlansResponseMapper.toResolvedResponse(dto));
+        complete(responseObserver, membershipPlanMapper.toResolvedResponse(dto));
     }
 
     private static <T> void complete(StreamObserver<T> observer, T response) {

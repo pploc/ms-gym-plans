@@ -2,7 +2,7 @@ package com.gym.plans.adapter.in.http.controller;
 
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
-import com.gym.plans.adapter.in.grpc.PlansResponseMapper;
+import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.domain.dto.GymLocationDto;
 import com.gym.proto.plans.v1.CreateGymLocationRequest;
@@ -27,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GymLocationHttpController {
 
     private final GymLocationService gymLocationService;
+    private final GymLocationMapper gymLocationMapper;
 
     @PostMapping
     @ResponseStatus(HttpStatus.OK)
@@ -34,7 +35,7 @@ public class GymLocationHttpController {
     public GymLocationResponse create(@RequestBody CreateGymLocationRequest request) {
         GymLocationDto dto = gymLocationService.create(
                 request.getChainId(), request.getName(), request.getAddress(), request.getCity());
-        return PlansResponseMapper.toGymResponse(dto);
+        return gymLocationMapper.toResponse(dto);
     }
 
     @PutMapping("/{id}")
@@ -50,13 +51,13 @@ public class GymLocationHttpController {
                 request.getAddress(),
                 request.getCity(),
                 request.getStatus());
-        return PlansResponseMapper.toGymResponse(dto);
+        return gymLocationMapper.toResponse(dto);
     }
 
     @GetMapping("/{id}")
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public GymLocationResponse get(@PathVariable("id") String id) {
-        return PlansResponseMapper.toGymResponse(gymLocationService.get(id));
+        return gymLocationMapper.toResponse(gymLocationService.get(id));
     }
 
     @GetMapping
@@ -67,7 +68,7 @@ public class GymLocationHttpController {
             @RequestParam(value = "status", required = false) String status) {
         return GymLocationsResponse.newBuilder()
                 .addAllLocations(gymLocationService.list(chainId, city, status).stream()
-                        .map(PlansResponseMapper::toGymResponse)
+                        .map(gymLocationMapper::toResponse)
                         .toList())
                 .build();
     }
