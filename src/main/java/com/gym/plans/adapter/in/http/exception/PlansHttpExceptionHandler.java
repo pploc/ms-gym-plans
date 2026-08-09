@@ -1,4 +1,4 @@
-package com.gym.plans.adapter.in.http;
+package com.gym.plans.adapter.in.http.exception;
 
 import com.gym.common.error.ErrorResponse;
 import com.gym.common.error.ErrorResponseFactory;

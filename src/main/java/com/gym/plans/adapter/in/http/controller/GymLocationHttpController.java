@@ -1,4 +1,4 @@
-package com.gym.plans.adapter.in.http;
+package com.gym.plans.adapter.in.http.controller;
 
 import com.gym.common.grpc.security.RequireRole;
 import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;

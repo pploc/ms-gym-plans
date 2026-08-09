@@ -2,8 +2,8 @@ package com.gym.plans.unit.http;
 
 import com.gym.common.grpc.security.GrpcSecurityContext;
 import com.gym.common.grpc.security.UserClaims;
-import com.gym.plans.adapter.in.http.GymLocationHttpController;
-import com.gym.plans.adapter.in.http.MembershipPlanHttpController;
+import com.gym.plans.adapter.in.http.controller.GymLocationHttpController;
+import com.gym.plans.adapter.in.http.controller.MembershipPlanHttpController;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.GymLocationDto;
@@ -14,6 +14,7 @@ import com.gym.proto.plans.v1.CreateGymLocationRequest;
 import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
 import com.gym.proto.plans.v1.GymLocationResponse;
 import com.gym.proto.plans.v1.MembershipPlanResponse;
+import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import io.grpc.Context;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -85,6 +87,36 @@ class PlansHttpControllerUnitTest {
         assertEquals("g1", response.getGymId());
         assertEquals(30, response.getDurationDays());
         verify(membershipPlanService).create("g1", "Monthly", "MONTHLY", 30, 100L, "d", null);
+    }
+
+    @Test
+    void givenUpdatePlanBody_whenUpdate_thenMapsProtoResponse() {
+        // Given
+        when(membershipPlanService.get("p1"))
+                .thenReturn(new MembershipPlanDto(
+                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true));
+        when(membershipPlanService.update("p1", "Yearly", "YEARLY", 365, 200L, "yr", false))
+                .thenReturn(new MembershipPlanDto(
+                        "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "yr", false));
+
+        // When
+        MembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.update(
+                "p1",
+                UpdateMembershipPlanRequest.newBuilder()
+                        .setName("Yearly")
+                        .setPlanType("YEARLY")
+                        .setDurationDays(365)
+                        .setPriceVnd(200L)
+                        .setDescription("yr")
+                        .setActive(false)
+                        .build()));
+
+        // Then
+        assertEquals("p1", response.getId());
+        assertEquals("YEARLY", response.getPlanType());
+        assertEquals(365, response.getDurationDays());
+        assertFalse(response.getActive());
+        verify(membershipPlanService).update("p1", "Yearly", "YEARLY", 365, 200L, "yr", false);
     }
 
     private static <T> T withSuperAdmin(java.util.function.Supplier<T> action) {

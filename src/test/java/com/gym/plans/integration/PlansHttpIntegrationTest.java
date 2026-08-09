@@ -201,6 +201,56 @@ class PlansHttpIntegrationTest {
     }
 
     @Test
+    void givenExistingPlan_whenUpdatePlan_thenPersistsFields() throws Exception {
+        // Given
+        MvcResult gymResult = mockMvc.perform(post("/api/v1/gyms")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("x-user-id", "sa")
+                        .header("x-user-role", "SUPER_ADMIN")
+                        .content(
+                                """
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        String gymId = objectMapper.readTree(gymResult.getResponse().getContentAsString()).get("id").asText();
+        MvcResult planResult = mockMvc.perform(post("/api/v1/gyms/" + gymId + "/plans")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("x-user-id", "sa")
+                        .header("x-user-role", "SUPER_ADMIN")
+                        .header("x-gym-id", gymId)
+                        .content(
+                                """
+                                {"name":"Monthly","planType":"MONTHLY","durationDays":30,"priceVnd":100,"description":"base"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        String planId =
+                objectMapper.readTree(planResult.getResponse().getContentAsString()).get("id").asText();
+
+        // When
+        MvcResult updated = mockMvc.perform(put("/api/v1/plans/" + planId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("x-user-id", "sa")
+                        .header("x-user-role", "SUPER_ADMIN")
+                        .header("x-gym-id", gymId)
+                        .content(
+                                """
+                                {"name":"Yearly","planType":"YEARLY","durationDays":365,"priceVnd":200,"description":"yr","active":false}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        // Then — protobuf JSON omits default false booleans
+        JsonNode body = objectMapper.readTree(updated.getResponse().getContentAsString());
+        assertTrue(body.get("id").asText().equals(planId));
+        assertTrue(body.get("planType").asText().equals("YEARLY"));
+        assertTrue(body.get("durationDays").asInt() == 365);
+        assertTrue(body.get("priceVnd").asLong() == 200L);
+        assertTrue(!body.path("active").asBoolean(false));
+    }
+
+    @Test
     void givenClosedStatus_whenUpdateGym_thenPersistsClosed() throws Exception {
         MvcResult gymResult = mockMvc.perform(post("/api/v1/gyms")
                         .contentType(MediaType.APPLICATION_JSON)

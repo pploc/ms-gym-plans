@@ -1,4 +1,4 @@
-package com.gym.plans.adapter.in.http;
+package com.gym.plans.adapter.in.http.filter;
 
 import com.gym.common.grpc.security.GrpcSecurityContext;
 import com.gym.common.grpc.security.RequireRole;

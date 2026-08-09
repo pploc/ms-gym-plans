@@ -100,6 +100,30 @@ class MembershipPlanServiceUnitTest {
     }
 
     @Test
+    void givenMonthlyWithoutDuration_whenCreate_thenRejects() {
+        // Given
+        when(gymLocationService.requireGym(gymId)).thenReturn(gym);
+
+        // When / Then
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> membershipPlanService.create(gymId, "Monthly", "MONTHLY", null, 100L, "", true));
+        assertEquals("duration_days must be positive for MONTHLY", ex.getMessage());
+    }
+
+    @Test
+    void givenBlankName_whenCreate_thenRejects() {
+        // Given
+        when(gymLocationService.requireGym(gymId)).thenReturn(gym);
+
+        // When / Then
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> membershipPlanService.create(gymId, "  ", "MONTHLY", 30, 100L, "", true));
+        assertEquals("name is required", ex.getMessage());
+    }
+
+    @Test
     void givenLifetimePlan_whenCreate_thenStoresNullDuration() {
         // Given
         when(gymLocationService.requireGym(gymId)).thenReturn(gym);
