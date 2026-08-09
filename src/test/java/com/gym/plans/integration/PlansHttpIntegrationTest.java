@@ -99,6 +99,27 @@ class PlansHttpIntegrationTest {
     }
 
     @Test
+    void givenMissingAuth_whenReadGymCatalog_thenUnauthorized() throws Exception {
+        // Given
+        MvcResult gymResult = mockMvc.perform(post("/api/v1/gyms")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("x-user-id", "sa")
+                        .header("x-user-role", "SUPER_ADMIN")
+                        .content(
+                                """
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        String gymId = objectMapper.readTree(gymResult.getResponse().getContentAsString()).get("id").asText();
+
+        // When / Then
+        mockMvc.perform(get("/api/v1/gyms/" + gymId)).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/gyms")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/gyms/" + gymId + "/plans")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void givenCustomer_whenCreateGym_thenForbidden() throws Exception {
         mockMvc.perform(post("/api/v1/gyms")
                         .contentType(MediaType.APPLICATION_JSON)
