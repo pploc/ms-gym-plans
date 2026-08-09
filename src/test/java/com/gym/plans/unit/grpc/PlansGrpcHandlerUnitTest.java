@@ -13,20 +13,25 @@ import com.gym.plans.domain.dto.ResolvedPlanDto;
 import com.gym.plans.domain.model.GymLocationStatus;
 import com.gym.plans.domain.model.PlanType;
 import com.gym.proto.plans.v1.CreateGymLocationRequest;
+import com.gym.proto.plans.v1.CreateGymLocationResponse;
 import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
+import com.gym.proto.plans.v1.CreateMembershipPlanResponse;
 import com.gym.proto.plans.v1.GetActiveGymRequest;
+import com.gym.proto.plans.v1.GetActiveGymResponse;
 import com.gym.proto.plans.v1.GetGymLocationRequest;
+import com.gym.proto.plans.v1.GetGymLocationResponse;
 import com.gym.proto.plans.v1.GetMembershipPlanRequest;
-import com.gym.proto.plans.v1.GymLocationResponse;
-import com.gym.proto.plans.v1.GymLocationsResponse;
+import com.gym.proto.plans.v1.GetMembershipPlanResponse;
 import com.gym.proto.plans.v1.ListGymLocationsRequest;
+import com.gym.proto.plans.v1.ListGymLocationsResponse;
 import com.gym.proto.plans.v1.ListMembershipPlansRequest;
-import com.gym.proto.plans.v1.MembershipPlanResponse;
-import com.gym.proto.plans.v1.MembershipPlansResponse;
+import com.gym.proto.plans.v1.ListMembershipPlansResponse;
 import com.gym.proto.plans.v1.ResolvePurchasablePlanRequest;
-import com.gym.proto.plans.v1.ResolvedPlanResponse;
+import com.gym.proto.plans.v1.ResolvePurchasablePlanResponse;
 import com.gym.proto.plans.v1.UpdateGymLocationRequest;
+import com.gym.proto.plans.v1.UpdateGymLocationResponse;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
+import com.gym.proto.plans.v1.UpdateMembershipPlanResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
@@ -69,14 +74,12 @@ class PlansGrpcHandlerUnitTest {
 
     @Test
     void givenCreateGymRequest_whenCreateGymLocation_thenMapsResponse() {
-        // Given
         GymLocationDto dto =
                 new GymLocationDto("g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null);
         when(gymLocationService.create("c1", "Central", "1 Main", "Hanoi")).thenReturn(dto);
         @SuppressWarnings("unchecked")
-        StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
+        StreamObserver<CreateGymLocationResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.createGymLocation(
                 CreateGymLocationRequest.newBuilder()
                         .setChainId("c1")
@@ -86,35 +89,31 @@ class PlansGrpcHandlerUnitTest {
                         .build(),
                 observer);
 
-        // Then
-        ArgumentCaptor<GymLocationResponse> captor = ArgumentCaptor.forClass(GymLocationResponse.class);
+        ArgumentCaptor<CreateGymLocationResponse> captor = ArgumentCaptor.forClass(CreateGymLocationResponse.class);
         verify(observer).onNext(captor.capture());
         verify(observer).onCompleted();
         assertEquals("g1", captor.getValue().getId());
-        assertEquals("ACTIVE", captor.getValue().getStatus());
+        assertEquals(com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE, captor.getValue().getStatus());
     }
 
     @Test
     void givenListPlansRequest_whenListMembershipPlans_thenMapsOptionalActive() {
-        // Given
         MembershipPlanDto dto =
                 new MembershipPlanDto("p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null);
         when(membershipPlanService.list("g1", "MONTHLY", true)).thenReturn(List.of(dto));
         @SuppressWarnings("unchecked")
-        StreamObserver<MembershipPlansResponse> observer = mock(StreamObserver.class);
+        StreamObserver<ListMembershipPlansResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.listMembershipPlans(
                 ListMembershipPlansRequest.newBuilder()
                         .setGymId("g1")
-                        .setPlanType("MONTHLY")
+                        .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_MONTHLY)
                         .setActive(true)
                         .build(),
                 observer);
 
-        // Then
-        ArgumentCaptor<MembershipPlansResponse> captor =
-                ArgumentCaptor.forClass(MembershipPlansResponse.class);
+        ArgumentCaptor<ListMembershipPlansResponse> captor =
+                ArgumentCaptor.forClass(ListMembershipPlansResponse.class);
         verify(observer).onNext(captor.capture());
         assertEquals(1, captor.getValue().getPlansCount());
         assertEquals("p1", captor.getValue().getPlans(0).getId());
@@ -122,27 +121,24 @@ class PlansGrpcHandlerUnitTest {
 
     @Test
     void givenCreatePlanWithoutActive_whenCreateMembershipPlan_thenPassesNullActive() {
-        // Given
         MembershipPlanDto dto =
                 new MembershipPlanDto("p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null);
         when(membershipPlanService.create(eq("g1"), eq("Monthly"), eq("MONTHLY"), eq(30), eq(100L), eq("d"), isNull()))
                 .thenReturn(dto);
         @SuppressWarnings("unchecked")
-        StreamObserver<MembershipPlanResponse> observer = mock(StreamObserver.class);
+        StreamObserver<CreateMembershipPlanResponse> observer = mock(StreamObserver.class);
 
-        // When
         withSuperAdmin(() -> handler.createMembershipPlan(
                 CreateMembershipPlanRequest.newBuilder()
                         .setGymId("g1")
                         .setName("Monthly")
-                        .setPlanType("MONTHLY")
+                        .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_MONTHLY)
                         .setDurationDays(30)
                         .setPriceVnd(100L)
                         .setDescription("d")
                         .build(),
                 observer));
 
-        // Then
         verify(membershipPlanService)
                 .create(eq("g1"), eq("Monthly"), eq("MONTHLY"), eq(30), eq(100L), eq("d"), isNull());
         verify(observer).onCompleted();
@@ -150,73 +146,61 @@ class PlansGrpcHandlerUnitTest {
 
     @Test
     void givenLifetimeResolvedPlan_whenResolvePurchasablePlan_thenOmitsDuration() {
-        // Given
         ResolvedPlanDto dto = new ResolvedPlanDto("p1", "g1", PlanType.LIFETIME, null, 9_000L);
         when(membershipPlanService.resolvePurchasable("p1", "g1")).thenReturn(dto);
         @SuppressWarnings("unchecked")
-        StreamObserver<ResolvedPlanResponse> observer = mock(StreamObserver.class);
+        StreamObserver<ResolvePurchasablePlanResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.resolvePurchasablePlan(
                 ResolvePurchasablePlanRequest.newBuilder().setPlanId("p1").setGymId("g1").build(),
                 observer);
 
-        // Then
-        ArgumentCaptor<ResolvedPlanResponse> captor = ArgumentCaptor.forClass(ResolvedPlanResponse.class);
+        ArgumentCaptor<ResolvePurchasablePlanResponse> captor = ArgumentCaptor.forClass(ResolvePurchasablePlanResponse.class);
         verify(observer).onNext(captor.capture());
         assertFalse(captor.getValue().hasDurationDays());
-        assertEquals("LIFETIME", captor.getValue().getPlanType());
+        assertEquals(com.gym.proto.common.v1.PlanType.PLAN_TYPE_LIFETIME, captor.getValue().getPlanType());
     }
 
     @Test
     void givenActiveGym_whenGetActiveGym_thenMapsResponse() {
-        // Given
         GymLocationDto dto =
                 new GymLocationDto("g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null);
         when(gymLocationService.getActive("g1")).thenReturn(dto);
         @SuppressWarnings("unchecked")
-        StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
+        StreamObserver<GetActiveGymResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.getActiveGym(GetActiveGymRequest.newBuilder().setGymId("g1").build(), observer);
 
-        // Then
-        verify(observer).onNext(any(GymLocationResponse.class));
+        verify(observer).onNext(any(GetActiveGymResponse.class));
         verify(observer).onCompleted();
     }
 
     @Test
     void givenListGyms_whenListGymLocations_thenMapsCollection() {
-        // Given
-        when(gymLocationService.list("", "", ""))
+        when(gymLocationService.list("", "", null))
                 .thenReturn(List.of(
                         new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null)));
         @SuppressWarnings("unchecked")
-        StreamObserver<GymLocationsResponse> observer = mock(StreamObserver.class);
+        StreamObserver<ListGymLocationsResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.listGymLocations(ListGymLocationsRequest.getDefaultInstance(), observer);
 
-        // Then
-        ArgumentCaptor<GymLocationsResponse> captor = ArgumentCaptor.forClass(GymLocationsResponse.class);
+        ArgumentCaptor<ListGymLocationsResponse> captor = ArgumentCaptor.forClass(ListGymLocationsResponse.class);
         verify(observer).onNext(captor.capture());
         assertEquals(1, captor.getValue().getLocationsCount());
     }
 
     @Test
     void givenGetPlan_whenGetMembershipPlan_thenMapsOptionalDuration() {
-        // Given
         when(membershipPlanService.get("p1"))
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
         @SuppressWarnings("unchecked")
-        StreamObserver<MembershipPlanResponse> observer = mock(StreamObserver.class);
+        StreamObserver<GetMembershipPlanResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.getMembershipPlan(GetMembershipPlanRequest.newBuilder().setId("p1").build(), observer);
 
-        // Then
-        ArgumentCaptor<MembershipPlanResponse> captor = ArgumentCaptor.forClass(MembershipPlanResponse.class);
+        ArgumentCaptor<GetMembershipPlanResponse> captor = ArgumentCaptor.forClass(GetMembershipPlanResponse.class);
         verify(observer).onNext(captor.capture());
         assertTrue(captor.getValue().hasDurationDays());
         assertEquals(30, captor.getValue().getDurationDays());
@@ -224,22 +208,18 @@ class PlansGrpcHandlerUnitTest {
 
     @Test
     void givenGetGym_whenGetGymLocation_thenMapsResponse() {
-        // Given
         when(gymLocationService.get("g1"))
                 .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null));
         @SuppressWarnings("unchecked")
-        StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
+        StreamObserver<GetGymLocationResponse> observer = mock(StreamObserver.class);
 
-        // When
         handler.getGymLocation(GetGymLocationRequest.newBuilder().setId("g1").build(), observer);
 
-        // Then
         verify(observer).onCompleted();
     }
 
     @Test
     void givenUpdatePlan_whenUpdateMembershipPlan_thenMapsResponse() {
-        // Given
         when(membershipPlanService.get("p1"))
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
@@ -247,14 +227,13 @@ class PlansGrpcHandlerUnitTest {
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "y", false, null, null));
         @SuppressWarnings("unchecked")
-        StreamObserver<MembershipPlanResponse> observer = mock(StreamObserver.class);
+        StreamObserver<UpdateMembershipPlanResponse> observer = mock(StreamObserver.class);
 
-        // When
         withSuperAdmin(() -> handler.updateMembershipPlan(
                 UpdateMembershipPlanRequest.newBuilder()
                         .setId("p1")
                         .setName("Yearly")
-                        .setPlanType("YEARLY")
+                        .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_YEARLY)
                         .setDurationDays(365)
                         .setPriceVnd(200L)
                         .setDescription("y")
@@ -262,21 +241,18 @@ class PlansGrpcHandlerUnitTest {
                         .build(),
                 observer));
 
-        // Then
         verify(observer).onCompleted();
     }
 
     @Test
     void givenUpdateGym_whenUpdateGymLocation_thenMapsResponse() {
-        // Given
         when(gymLocationService.get("g1"))
                 .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null));
         when(gymLocationService.update("g1", "c1", "B", "2", "SG", "CLOSED"))
                 .thenReturn(new GymLocationDto("g1", "c1", "B", "2", "SG", GymLocationStatus.CLOSED, null, null));
         @SuppressWarnings("unchecked")
-        StreamObserver<GymLocationResponse> observer = mock(StreamObserver.class);
+        StreamObserver<UpdateGymLocationResponse> observer = mock(StreamObserver.class);
 
-        // When
         withSuperAdmin(() -> handler.updateGymLocation(
                 UpdateGymLocationRequest.newBuilder()
                         .setId("g1")
@@ -284,11 +260,10 @@ class PlansGrpcHandlerUnitTest {
                         .setName("B")
                         .setAddress("2")
                         .setCity("SG")
-                        .setStatus("CLOSED")
+                        .setStatus(com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_CLOSED)
                         .build(),
                 observer));
 
-        // Then
         verify(observer).onCompleted();
     }
 

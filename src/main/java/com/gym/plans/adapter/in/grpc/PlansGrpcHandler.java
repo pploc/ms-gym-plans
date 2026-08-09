@@ -10,22 +10,28 @@ import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.GymLocationDto;
 import com.gym.plans.domain.dto.MembershipPlanDto;
 import com.gym.plans.domain.dto.ResolvedPlanDto;
+import com.gym.plans.shared.mapper.ProtoEnums;
 import com.gym.proto.plans.v1.CreateGymLocationRequest;
+import com.gym.proto.plans.v1.CreateGymLocationResponse;
 import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
+import com.gym.proto.plans.v1.CreateMembershipPlanResponse;
 import com.gym.proto.plans.v1.GetActiveGymRequest;
+import com.gym.proto.plans.v1.GetActiveGymResponse;
 import com.gym.proto.plans.v1.GetGymLocationRequest;
+import com.gym.proto.plans.v1.GetGymLocationResponse;
 import com.gym.proto.plans.v1.GetMembershipPlanRequest;
-import com.gym.proto.plans.v1.GymLocationResponse;
-import com.gym.proto.plans.v1.GymLocationsResponse;
+import com.gym.proto.plans.v1.GetMembershipPlanResponse;
 import com.gym.proto.plans.v1.ListGymLocationsRequest;
+import com.gym.proto.plans.v1.ListGymLocationsResponse;
 import com.gym.proto.plans.v1.ListMembershipPlansRequest;
-import com.gym.proto.plans.v1.MembershipPlanResponse;
-import com.gym.proto.plans.v1.MembershipPlansResponse;
+import com.gym.proto.plans.v1.ListMembershipPlansResponse;
 import com.gym.proto.plans.v1.PlansServiceGrpc;
 import com.gym.proto.plans.v1.ResolvePurchasablePlanRequest;
-import com.gym.proto.plans.v1.ResolvedPlanResponse;
+import com.gym.proto.plans.v1.ResolvePurchasablePlanResponse;
 import com.gym.proto.plans.v1.UpdateGymLocationRequest;
+import com.gym.proto.plans.v1.UpdateGymLocationResponse;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
+import com.gym.proto.plans.v1.UpdateMembershipPlanResponse;
 import io.grpc.stub.StreamObserver;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -42,16 +48,16 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
     @Override
     @RequireRole("SUPER_ADMIN")
     public void createGymLocation(
-            CreateGymLocationRequest request, StreamObserver<GymLocationResponse> responseObserver) {
+            CreateGymLocationRequest request, StreamObserver<CreateGymLocationResponse> responseObserver) {
         GymLocationDto dto = gymLocationService.create(
                 request.getChainId(), request.getName(), request.getAddress(), request.getCity());
-        complete(responseObserver, gymLocationMapper.toResponse(dto));
+        complete(responseObserver, gymLocationMapper.toCreateResponse(dto));
     }
 
     @Override
     @RequireRole({"ADMIN", "SUPER_ADMIN"})
     public void updateGymLocation(
-            UpdateGymLocationRequest request, StreamObserver<GymLocationResponse> responseObserver) {
+            UpdateGymLocationRequest request, StreamObserver<UpdateGymLocationResponse> responseObserver) {
         GymLocationDto existing = gymLocationService.get(request.getId());
         GrpcAccessPolicy.requireGym(existing.id());
         GymLocationDto dto = gymLocationService.update(
@@ -60,94 +66,94 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
                 request.getName(),
                 request.getAddress(),
                 request.getCity(),
-                request.getStatus());
-        complete(responseObserver, gymLocationMapper.toResponse(dto));
+                ProtoEnums.toDomain(request.getStatus()).name());
+        complete(responseObserver, gymLocationMapper.toUpdateResponse(dto));
     }
 
     @Override
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
-    public void getGymLocation(GetGymLocationRequest request, StreamObserver<GymLocationResponse> responseObserver) {
-        complete(responseObserver, gymLocationMapper.toResponse(gymLocationService.get(request.getId())));
+    public void getGymLocation(GetGymLocationRequest request, StreamObserver<GetGymLocationResponse> responseObserver) {
+        complete(responseObserver, gymLocationMapper.toGetResponse(gymLocationService.get(request.getId())));
     }
 
     @Override
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public void listGymLocations(
-            ListGymLocationsRequest request, StreamObserver<GymLocationsResponse> responseObserver) {
+            ListGymLocationsRequest request, StreamObserver<ListGymLocationsResponse> responseObserver) {
         var locations = gymLocationService
-                .list(request.getChainId(), request.getCity(), request.getStatus())
+                .list(request.getChainId(), request.getCity(), ProtoEnums.statusFilter(request.getStatus()))
                 .stream()
-                .map(gymLocationMapper::toResponse)
+                .map(gymLocationMapper::toGetResponse)
                 .toList();
-        complete(responseObserver, GymLocationsResponse.newBuilder().addAllLocations(locations).build());
+        complete(responseObserver, ListGymLocationsResponse.newBuilder().addAllLocations(locations).build());
     }
 
     @Override
     @RequireRole({"ADMIN", "SUPER_ADMIN"})
     public void createMembershipPlan(
-            CreateMembershipPlanRequest request, StreamObserver<MembershipPlanResponse> responseObserver) {
+            CreateMembershipPlanRequest request, StreamObserver<CreateMembershipPlanResponse> responseObserver) {
         GrpcAccessPolicy.requireGym(request.getGymId());
         Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         Boolean active = request.hasActive() ? request.getActive() : null;
         MembershipPlanDto dto = membershipPlanService.create(
                 request.getGymId(),
                 request.getName(),
-                request.getPlanType(),
+                ProtoEnums.toDomain(request.getPlanType()).name(),
                 duration,
                 request.getPriceVnd(),
                 request.getDescription(),
                 active);
-        complete(responseObserver, membershipPlanMapper.toResponse(dto));
+        complete(responseObserver, membershipPlanMapper.toCreateResponse(dto));
     }
 
     @Override
     @RequireRole({"ADMIN", "SUPER_ADMIN"})
     public void updateMembershipPlan(
-            UpdateMembershipPlanRequest request, StreamObserver<MembershipPlanResponse> responseObserver) {
+            UpdateMembershipPlanRequest request, StreamObserver<UpdateMembershipPlanResponse> responseObserver) {
         MembershipPlanDto existing = membershipPlanService.get(request.getId());
         GrpcAccessPolicy.requireGym(existing.gymId());
         Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         MembershipPlanDto dto = membershipPlanService.update(
                 request.getId(),
                 request.getName(),
-                request.getPlanType(),
+                ProtoEnums.toDomain(request.getPlanType()).name(),
                 duration,
                 request.getPriceVnd(),
                 request.getDescription(),
                 request.getActive());
-        complete(responseObserver, membershipPlanMapper.toResponse(dto));
+        complete(responseObserver, membershipPlanMapper.toUpdateResponse(dto));
     }
 
     @Override
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public void getMembershipPlan(
-            GetMembershipPlanRequest request, StreamObserver<MembershipPlanResponse> responseObserver) {
-        complete(responseObserver, membershipPlanMapper.toResponse(membershipPlanService.get(request.getId())));
+            GetMembershipPlanRequest request, StreamObserver<GetMembershipPlanResponse> responseObserver) {
+        complete(responseObserver, membershipPlanMapper.toGetResponse(membershipPlanService.get(request.getId())));
     }
 
     @Override
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
     public void listMembershipPlans(
-            ListMembershipPlansRequest request, StreamObserver<MembershipPlansResponse> responseObserver) {
+            ListMembershipPlansRequest request, StreamObserver<ListMembershipPlansResponse> responseObserver) {
         Boolean active = request.hasActive() ? request.getActive() : null;
         var plans = membershipPlanService
-                .list(request.getGymId(), request.getPlanType(), active)
+                .list(request.getGymId(), ProtoEnums.planTypeFilter(request.getPlanType()), active)
                 .stream()
-                .map(membershipPlanMapper::toResponse)
+                .map(membershipPlanMapper::toGetResponse)
                 .toList();
-        complete(responseObserver, MembershipPlansResponse.newBuilder().addAllPlans(plans).build());
+        complete(responseObserver, ListMembershipPlansResponse.newBuilder().addAllPlans(plans).build());
     }
 
     @Override
     @RequirePolicy(RpcPolicyKind.INTERNAL_WORKLOAD)
-    public void getActiveGym(GetActiveGymRequest request, StreamObserver<GymLocationResponse> responseObserver) {
-        complete(responseObserver, gymLocationMapper.toResponse(gymLocationService.getActive(request.getGymId())));
+    public void getActiveGym(GetActiveGymRequest request, StreamObserver<GetActiveGymResponse> responseObserver) {
+        complete(responseObserver, gymLocationMapper.toActiveResponse(gymLocationService.getActive(request.getGymId())));
     }
 
     @Override
     @RequirePolicy(RpcPolicyKind.INTERNAL_WORKLOAD)
     public void resolvePurchasablePlan(
-            ResolvePurchasablePlanRequest request, StreamObserver<ResolvedPlanResponse> responseObserver) {
+            ResolvePurchasablePlanRequest request, StreamObserver<ResolvePurchasablePlanResponse> responseObserver) {
         ResolvedPlanDto dto =
                 membershipPlanService.resolvePurchasable(request.getPlanId(), request.getGymId());
         complete(responseObserver, membershipPlanMapper.toResolvedResponse(dto));

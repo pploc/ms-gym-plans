@@ -13,10 +13,11 @@ import com.gym.plans.domain.dto.MembershipPlanDto;
 import com.gym.plans.domain.model.GymLocationStatus;
 import com.gym.plans.domain.model.PlanType;
 import com.gym.proto.plans.v1.CreateGymLocationRequest;
+import com.gym.proto.plans.v1.CreateGymLocationResponse;
 import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
-import com.gym.proto.plans.v1.GymLocationResponse;
-import com.gym.proto.plans.v1.MembershipPlanResponse;
+import com.gym.proto.plans.v1.CreateMembershipPlanResponse;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
+import com.gym.proto.plans.v1.UpdateMembershipPlanResponse;
 import io.grpc.Context;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,13 +53,11 @@ class PlansHttpControllerUnitTest {
 
     @Test
     void givenCreateGymBody_whenCreate_thenMapsProtoResponse() {
-        // Given
         when(gymLocationService.create("c1", "Central", "1 Main", "Hanoi"))
                 .thenReturn(new GymLocationDto(
                         "g1", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null));
 
-        // When
-        GymLocationResponse response = gymLocationHttpController.create(
+        CreateGymLocationResponse response = gymLocationHttpController.create(
                 CreateGymLocationRequest.newBuilder()
                         .setChainId("c1")
                         .setName("Central")
@@ -66,31 +65,27 @@ class PlansHttpControllerUnitTest {
                         .setCity("Hanoi")
                         .build());
 
-        // Then
         assertEquals("g1", response.getId());
         assertEquals("c1", response.getChainId());
-        assertEquals("ACTIVE", response.getStatus());
+        assertEquals(com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE, response.getStatus());
     }
 
     @Test
     void givenCreatePlanBody_whenCreate_thenUsesPathGymId() {
-        // Given
         when(membershipPlanService.create("g1", "Monthly", "MONTHLY", 30, 100L, "d", null))
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
 
-        // When
-        MembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.create(
+        CreateMembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.create(
                 "g1",
                 CreateMembershipPlanRequest.newBuilder()
                         .setName("Monthly")
-                        .setPlanType("MONTHLY")
+                        .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_MONTHLY)
                         .setDurationDays(30)
                         .setPriceVnd(100L)
                         .setDescription("d")
                         .build()));
 
-        // Then
         assertEquals("p1", response.getId());
         assertEquals("g1", response.getGymId());
         assertEquals(30, response.getDurationDays());
@@ -99,7 +94,6 @@ class PlansHttpControllerUnitTest {
 
     @Test
     void givenUpdatePlanBody_whenUpdate_thenMapsProtoResponse() {
-        // Given
         when(membershipPlanService.get("p1"))
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
@@ -107,21 +101,19 @@ class PlansHttpControllerUnitTest {
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "yr", false, null, null));
 
-        // When
-        MembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.update(
+        UpdateMembershipPlanResponse response = withSuperAdmin(() -> membershipPlanHttpController.update(
                 "p1",
                 UpdateMembershipPlanRequest.newBuilder()
                         .setName("Yearly")
-                        .setPlanType("YEARLY")
+                        .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_YEARLY)
                         .setDurationDays(365)
                         .setPriceVnd(200L)
                         .setDescription("yr")
                         .setActive(false)
                         .build()));
 
-        // Then
         assertEquals("p1", response.getId());
-        assertEquals("YEARLY", response.getPlanType());
+        assertEquals(com.gym.proto.common.v1.PlanType.PLAN_TYPE_YEARLY, response.getPlanType());
         assertEquals(365, response.getDurationDays());
         assertFalse(response.getActive());
         verify(membershipPlanService).update("p1", "Yearly", "YEARLY", 365, 200L, "yr", false);

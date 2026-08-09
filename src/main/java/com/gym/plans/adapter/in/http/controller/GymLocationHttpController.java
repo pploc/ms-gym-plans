@@ -5,10 +5,13 @@ import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
 import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.domain.dto.GymLocationDto;
+import com.gym.plans.shared.mapper.ProtoEnums;
 import com.gym.proto.plans.v1.CreateGymLocationRequest;
-import com.gym.proto.plans.v1.GymLocationResponse;
-import com.gym.proto.plans.v1.GymLocationsResponse;
+import com.gym.proto.plans.v1.CreateGymLocationResponse;
+import com.gym.proto.plans.v1.GetGymLocationResponse;
+import com.gym.proto.plans.v1.ListGymLocationsResponse;
 import com.gym.proto.plans.v1.UpdateGymLocationRequest;
+import com.gym.proto.plans.v1.UpdateGymLocationResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,15 +35,15 @@ public class GymLocationHttpController {
     @PostMapping
     @ResponseStatus(HttpStatus.OK)
     @RequireRole("SUPER_ADMIN")
-    public GymLocationResponse create(@RequestBody CreateGymLocationRequest request) {
+    public CreateGymLocationResponse create(@RequestBody CreateGymLocationRequest request) {
         GymLocationDto dto = gymLocationService.create(
                 request.getChainId(), request.getName(), request.getAddress(), request.getCity());
-        return gymLocationMapper.toResponse(dto);
+        return gymLocationMapper.toCreateResponse(dto);
     }
 
     @PutMapping("/{id}")
     @RequireRole({"ADMIN", "SUPER_ADMIN"})
-    public GymLocationResponse update(
+    public UpdateGymLocationResponse update(
             @PathVariable("id") String id, @RequestBody UpdateGymLocationRequest request) {
         GymLocationDto existing = gymLocationService.get(id);
         GrpcAccessPolicy.requireGym(existing.id());
@@ -50,25 +53,25 @@ public class GymLocationHttpController {
                 request.getName(),
                 request.getAddress(),
                 request.getCity(),
-                request.getStatus());
-        return gymLocationMapper.toResponse(dto);
+                ProtoEnums.toDomain(request.getStatus()).name());
+        return gymLocationMapper.toUpdateResponse(dto);
     }
 
     @GetMapping("/{id}")
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
-    public GymLocationResponse get(@PathVariable("id") String id) {
-        return gymLocationMapper.toResponse(gymLocationService.get(id));
+    public GetGymLocationResponse get(@PathVariable("id") String id) {
+        return gymLocationMapper.toGetResponse(gymLocationService.get(id));
     }
 
     @GetMapping
     @RequireRole({"CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN"})
-    public GymLocationsResponse list(
+    public ListGymLocationsResponse list(
             @RequestParam(value = "chainId", required = false) String chainId,
             @RequestParam(value = "city", required = false) String city,
             @RequestParam(value = "status", required = false) String status) {
-        return GymLocationsResponse.newBuilder()
+        return ListGymLocationsResponse.newBuilder()
                 .addAllLocations(gymLocationService.list(chainId, city, status).stream()
-                        .map(gymLocationMapper::toResponse)
+                        .map(gymLocationMapper::toGetResponse)
                         .toList())
                 .build();
     }
