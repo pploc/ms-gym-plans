@@ -13,6 +13,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -34,30 +35,29 @@ class HttpTrustedClaimsFilterUnitTest {
     }
 
     @Test
-    void givenInvalidMembershipStatus_whenDoFilter_thenDefaultsMembershipToNone() throws Exception {
+    void givenForgedGymAndMembershipHeaders_whenDoFilter_thenIgnoresRetiredClaims() throws Exception {
         // Given
         HttpServletRequest request = mock(HttpServletRequest.class);
         HttpServletResponse response = mock(HttpServletResponse.class);
         when(request.getRequestURI()).thenReturn("/api/v1/gyms");
         when(request.getHeader("x-user-id")).thenReturn("u1");
         when(request.getHeader("x-user-role")).thenReturn("CUSTOMER");
-        when(request.getHeader("x-gym-id")).thenReturn("g1");
-        when(request.getHeader("x-membership-status")).thenReturn("BOGUS");
 
         FilterChain chain = (req, res) -> {
             UserClaims claims = GrpcSecurityContext.getCurrentClaims();
             assertEquals("u1", claims.userId());
             assertEquals("CUSTOMER", claims.role());
-            assertEquals("g1", claims.gymId());
+            assertNull(claims.gymId());
             assertEquals(UserClaims.NONE, claims.membershipStatus());
         };
 
         // When
         filter.doFilter(request, response, chain);
 
-        // Then — after filter, claims context is detached
+        // Then
         assertNull(GrpcSecurityContext.getCurrentClaims());
-        verify(request).getHeader("x-membership-status");
+        verify(request, never()).getHeader("x-gym-id");
+        verify(request, never()).getHeader("x-membership-status");
     }
 
     @Test

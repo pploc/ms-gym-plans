@@ -93,7 +93,9 @@ class PlansMtlsWorkloadIntegrationTest {
 
         // Then
         assertEquals(gym.id(), response.getId());
-        assertEquals("ACTIVE", response.getStatus());
+        assertEquals(
+                com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE,
+                response.getStatus());
     }
 
     @Test

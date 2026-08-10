@@ -1,7 +1,6 @@
 package com.gym.plans.adapter.in.http.controller;
 
 import com.gym.common.grpc.security.RequireRole;
-import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
 import com.gym.plans.adapter.out.persistence.mapper.GymLocationMapper;
 import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.domain.dto.GymLocationDto;
@@ -42,11 +41,9 @@ public class GymLocationHttpController {
     }
 
     @PutMapping("/{id}")
-    @RequireRole({"ADMIN", "SUPER_ADMIN"})
+    @RequireRole("SUPER_ADMIN")
     public UpdateGymLocationResponse update(
             @PathVariable("id") String id, @RequestBody UpdateGymLocationRequest request) {
-        GymLocationDto existing = gymLocationService.get(id);
-        GrpcAccessPolicy.requireGym(existing.id());
         GymLocationDto dto = gymLocationService.update(
                 id,
                 request.getChainId(),

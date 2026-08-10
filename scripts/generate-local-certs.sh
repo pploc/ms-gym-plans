@@ -78,7 +78,7 @@ Postman (public catalog RPCs):
   Enable TLS + client cert
   CA / server trust: ca.crt
   Client cert: client-postman.p12 (password above)
-  Still send x-user-id / x-user-role / ... metadata
+  Still send x-user-id / x-user-role metadata
 
 Internal:
   GetActiveGym          → client-identifier.p12
@@ -88,7 +88,7 @@ Internal:
 grpcurl public example:
   grpcurl -cacert $out/ca.crt \\
     -cert $out/client-postman.crt -key $out/client-postman.key \\
-    -H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN' -H 'x-membership-status: NONE' \\
+    -H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN' \\
     -d '{"chainId":"c","name":"n","address":"a","city":"city"}' \\
     localhost:50051 plans.v1.PlansService/CreateGymLocation
 EOF

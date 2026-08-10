@@ -94,9 +94,6 @@ class PlansHttpControllerUnitTest {
 
     @Test
     void givenUpdatePlanBody_whenUpdate_thenMapsProtoResponse() {
-        when(membershipPlanService.get("p1"))
-                .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
         when(membershipPlanService.update("p1", "Yearly", "YEARLY", 365, 200L, "yr", false))
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "yr", false, null, null));

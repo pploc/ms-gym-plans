@@ -25,7 +25,6 @@ import java.util.Set;
 public class HttpTrustedClaimsFilter extends OncePerRequestFilter {
 
     private static final Set<String> ROLES = Set.of("CUSTOMER", "TRAINER", "ADMIN", "SUPER_ADMIN");
-    private static final Set<String> MEMBERSHIPS = Set.of("NONE", "ACTIVE", "PAUSED", "EXPIRED");
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
@@ -57,12 +56,7 @@ public class HttpTrustedClaimsFilter extends OncePerRequestFilter {
         if (userId == null || role == null || !ROLES.contains(role)) {
             return null;
         }
-        String gymId = trim(request.getHeader("x-gym-id"));
-        String membership = upper(request.getHeader("x-membership-status"));
-        if (membership != null && !MEMBERSHIPS.contains(membership)) {
-            membership = null;
-        }
-        return new UserClaims(userId, role, gymId, membership == null ? UserClaims.NONE : membership);
+        return new UserClaims(userId, role, null, UserClaims.NONE);
     }
 
     private static String trim(String value) {

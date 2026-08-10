@@ -42,7 +42,7 @@ class PlansHttpIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").isNotEmpty())
                 .andExpect(jsonPath("$.chainId").value("chain-http"))
-                .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.status").value("GYM_LOCATION_STATUS_ACTIVE"))
                 .andReturn();
 
         String gymId = objectMapper.readTree(gymResult.getResponse().getContentAsString()).get("id").asText();
@@ -51,14 +51,13 @@ class PlansHttpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("x-user-id", "admin-1")
                         .header("x-user-role", "SUPER_ADMIN")
-                        .header("x-gym-id", gymId)
                         .content(
                                 """
-                                {"name":"Monthly","planType":"MONTHLY","durationDays":30,"priceVnd":450000,"description":"base"}
+                                {"name":"Monthly","planType":"PLAN_TYPE_MONTHLY","durationDays":30,"priceVnd":450000,"description":"base"}
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.gymId").value(gymId))
-                .andExpect(jsonPath("$.planType").value("MONTHLY"))
+                .andExpect(jsonPath("$.planType").value("PLAN_TYPE_MONTHLY"))
                 .andExpect(jsonPath("$.durationDays").value(30))
                 .andExpect(jsonPath("$.active").value(true))
                 .andReturn();
@@ -133,7 +132,7 @@ class PlansHttpIntegrationTest {
     }
 
     @Test
-    void givenAdminOutsideGym_whenCreatePlan_thenForbidden() throws Exception {
+    void givenAdminWithForgedGymHeader_whenCreatePlan_thenForbidden() throws Exception {
         // Given
         MvcResult gymResult = mockMvc.perform(post("/api/v1/gyms")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -155,7 +154,7 @@ class PlansHttpIntegrationTest {
                         .header("x-gym-id", "other-gym")
                         .content(
                                 """
-                                {"name":"Monthly","planType":"MONTHLY","durationDays":30,"priceVnd":1}
+                                {"name":"Monthly","planType":"PLAN_TYPE_MONTHLY","durationDays":30,"priceVnd":1}
                                 """))
                 .andExpect(status().isForbidden());
     }
@@ -218,10 +217,9 @@ class PlansHttpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("x-user-id", "sa")
                         .header("x-user-role", "SUPER_ADMIN")
-                        .header("x-gym-id", gymId)
                         .content(
                                 """
-                                {"name":"Monthly","planType":"MONTHLY","durationDays":30,"priceVnd":100,"description":"base"}
+                                {"name":"Monthly","planType":"PLAN_TYPE_MONTHLY","durationDays":30,"priceVnd":100,"description":"base"}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -233,10 +231,9 @@ class PlansHttpIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("x-user-id", "sa")
                         .header("x-user-role", "SUPER_ADMIN")
-                        .header("x-gym-id", gymId)
                         .content(
                                 """
-                                {"name":"Yearly","planType":"YEARLY","durationDays":365,"priceVnd":200,"description":"yr","active":false}
+                                {"name":"Yearly","planType":"PLAN_TYPE_YEARLY","durationDays":365,"priceVnd":200,"description":"yr","active":false}
                                 """))
                 .andExpect(status().isOk())
                 .andReturn();
@@ -244,7 +241,7 @@ class PlansHttpIntegrationTest {
         // Then — protobuf JSON omits default false booleans
         JsonNode body = objectMapper.readTree(updated.getResponse().getContentAsString());
         assertTrue(body.get("id").asText().equals(planId));
-        assertTrue(body.get("planType").asText().equals("YEARLY"));
+        assertTrue(body.get("planType").asText().equals("PLAN_TYPE_YEARLY"));
         assertTrue(body.get("durationDays").asInt() == 365);
         assertTrue(body.get("priceVnd").asLong() == 200L);
         assertTrue(!body.path("active").asBoolean(false));
@@ -270,10 +267,10 @@ class PlansHttpIntegrationTest {
                         .header("x-user-role", "SUPER_ADMIN")
                         .content(
                                 """
-                                {"chainId":"c","name":"G","address":"a","city":"Hanoi","status":"CLOSED"}
+                                {"chainId":"c","name":"G","address":"a","city":"Hanoi","status":"GYM_LOCATION_STATUS_CLOSED"}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("CLOSED"));
+                .andExpect(jsonPath("$.status").value("GYM_LOCATION_STATUS_CLOSED"));
 
         mockMvc.perform(get("/api/v1/gyms")
                         .header("x-user-id", "cust")
@@ -281,6 +278,6 @@ class PlansHttpIntegrationTest {
                         .param("status", "CLOSED"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.locations[0].id").value(gymId))
-                .andExpect(jsonPath("$.locations[0].status").value("CLOSED"));
+                .andExpect(jsonPath("$.locations[0].status").value("GYM_LOCATION_STATUS_CLOSED"));
     }
 }

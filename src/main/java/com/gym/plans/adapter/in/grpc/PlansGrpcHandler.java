@@ -55,11 +55,9 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
     }
 
     @Override
-    @RequireRole({"ADMIN", "SUPER_ADMIN"})
+    @RequireRole("SUPER_ADMIN")
     public void updateGymLocation(
             UpdateGymLocationRequest request, StreamObserver<UpdateGymLocationResponse> responseObserver) {
-        GymLocationDto existing = gymLocationService.get(request.getId());
-        GrpcAccessPolicy.requireGym(existing.id());
         GymLocationDto dto = gymLocationService.update(
                 request.getId(),
                 request.getChainId(),
@@ -89,10 +87,9 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
     }
 
     @Override
-    @RequireRole({"ADMIN", "SUPER_ADMIN"})
+    @RequireRole("SUPER_ADMIN")
     public void createMembershipPlan(
             CreateMembershipPlanRequest request, StreamObserver<CreateMembershipPlanResponse> responseObserver) {
-        GrpcAccessPolicy.requireGym(request.getGymId());
         Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         Boolean active = request.hasActive() ? request.getActive() : null;
         MembershipPlanDto dto = membershipPlanService.create(
@@ -107,11 +104,9 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
     }
 
     @Override
-    @RequireRole({"ADMIN", "SUPER_ADMIN"})
+    @RequireRole("SUPER_ADMIN")
     public void updateMembershipPlan(
             UpdateMembershipPlanRequest request, StreamObserver<UpdateMembershipPlanResponse> responseObserver) {
-        MembershipPlanDto existing = membershipPlanService.get(request.getId());
-        GrpcAccessPolicy.requireGym(existing.gymId());
         Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         MembershipPlanDto dto = membershipPlanService.update(
                 request.getId(),

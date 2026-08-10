@@ -16,7 +16,7 @@ Plans catalog service for gym locations and membership plans.
 
 - Java 26, Spring Boot 4.1
 - `com.gym:common-java:2.0.2` (includes `ProtobufJsonHttpMessageConverter` auto-config)
-- `com.gym.proto:gym-proto-java:3.0.0`
+- `com.gym.proto:gym-proto-java:5.0.0`
 - PostgreSQL (`plans_db`)
 
 Public HTTP request/response bodies are generated protobuf messages (`com.gym.proto.plans.v1.*`) with camelCase JSON field names (`chainId`, `priceVnd`). Path segments stay contract routes (`/gyms/{gym_id}/plans`). Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
@@ -59,15 +59,15 @@ export PLANS_GRPC_ALLOW_PLAINTEXT=true
 | Method | Path | Roles |
 |--------|------|--------|
 | `POST` | `/api/v1/gyms` | `SUPER_ADMIN` |
-| `PUT` | `/api/v1/gyms/{id}` | `ADMIN`, `SUPER_ADMIN` |
+| `PUT` | `/api/v1/gyms/{id}` | `SUPER_ADMIN` |
 | `GET` | `/api/v1/gyms` | authenticated |
 | `GET` | `/api/v1/gyms/{id}` | authenticated |
-| `POST` | `/api/v1/gyms/{gym_id}/plans` | `ADMIN`, `SUPER_ADMIN` |
-| `PUT` | `/api/v1/plans/{id}` | `ADMIN`, `SUPER_ADMIN` |
+| `POST` | `/api/v1/gyms/{gym_id}/plans` | `SUPER_ADMIN` |
+| `PUT` | `/api/v1/plans/{id}` | `SUPER_ADMIN` |
 | `GET` | `/api/v1/gyms/{gym_id}/plans` | authenticated |
 | `GET` | `/api/v1/plans/{id}` | authenticated |
 
-Kong injects trusted headers: `x-user-id`, `x-user-role`, `x-gym-id`, `x-membership-status`.
+Kong injects only trusted `x-user-id` and `x-user-role` headers. Gym context comes from request paths and fields.
 
 Internal RPCs have **no** HTTP mapping.
 

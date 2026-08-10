@@ -220,9 +220,6 @@ class PlansGrpcHandlerUnitTest {
 
     @Test
     void givenUpdatePlan_whenUpdateMembershipPlan_thenMapsResponse() {
-        when(membershipPlanService.get("p1"))
-                .thenReturn(new MembershipPlanDto(
-                        "p1", "g1", "Monthly", PlanType.MONTHLY, 30, 100L, "d", true, null, null));
         when(membershipPlanService.update("p1", "Yearly", "YEARLY", 365, 200L, "y", false))
                 .thenReturn(new MembershipPlanDto(
                         "p1", "g1", "Yearly", PlanType.YEARLY, 365, 200L, "y", false, null, null));
@@ -246,8 +243,6 @@ class PlansGrpcHandlerUnitTest {
 
     @Test
     void givenUpdateGym_whenUpdateGymLocation_thenMapsResponse() {
-        when(gymLocationService.get("g1"))
-                .thenReturn(new GymLocationDto("g1", "c1", "A", "1", "HN", GymLocationStatus.ACTIVE, null, null));
         when(gymLocationService.update("g1", "c1", "B", "2", "SG", "CLOSED"))
                 .thenReturn(new GymLocationDto("g1", "c1", "B", "2", "SG", GymLocationStatus.CLOSED, null, null));
         @SuppressWarnings("unchecked")

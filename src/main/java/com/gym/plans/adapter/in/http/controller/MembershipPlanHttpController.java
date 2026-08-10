@@ -1,7 +1,6 @@
 package com.gym.plans.adapter.in.http.controller;
 
 import com.gym.common.grpc.security.RequireRole;
-import com.gym.plans.adapter.in.grpc.GrpcAccessPolicy;
 import com.gym.plans.adapter.out.persistence.mapper.MembershipPlanMapper;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.MembershipPlanDto;
@@ -32,10 +31,9 @@ public class MembershipPlanHttpController {
 
     @PostMapping("/api/v1/gyms/{gym_id}/plans")
     @ResponseStatus(HttpStatus.OK)
-    @RequireRole({"ADMIN", "SUPER_ADMIN"})
+    @RequireRole("SUPER_ADMIN")
     public CreateMembershipPlanResponse create(
             @PathVariable("gym_id") String gymId, @RequestBody CreateMembershipPlanRequest request) {
-        GrpcAccessPolicy.requireGym(gymId);
         Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         Boolean active = request.hasActive() ? request.getActive() : null;
         MembershipPlanDto dto = membershipPlanService.create(
@@ -50,11 +48,9 @@ public class MembershipPlanHttpController {
     }
 
     @PutMapping("/api/v1/plans/{id}")
-    @RequireRole({"ADMIN", "SUPER_ADMIN"})
+    @RequireRole("SUPER_ADMIN")
     public UpdateMembershipPlanResponse update(
             @PathVariable("id") String id, @RequestBody UpdateMembershipPlanRequest request) {
-        MembershipPlanDto existing = membershipPlanService.get(id);
-        GrpcAccessPolicy.requireGym(existing.gymId());
         Integer duration = request.hasDurationDays() ? request.getDurationDays() : null;
         MembershipPlanDto dto = membershipPlanService.update(
                 id,
