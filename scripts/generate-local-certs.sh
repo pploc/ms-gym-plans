@@ -37,12 +37,15 @@ issue() {
 # Server leaf: Postman/grpcurl connect to localhost:50051
 issue server 'DNS:localhost,DNS:ms-gym-plans,IP:127.0.0.1' serverAuth
 
-# Generic client for public user RPCs (handshake only; role still from x-user-* metadata)
-issue client-postman 'DNS:postman-local' clientAuth
+# Kong is the only client identity allowed to carry end-user claim metadata.
+issue client-kong 'DNS:kong,URI:spiffe://gym.cluster.local/ns/gym-system/sa/kong' clientAuth
 
-# Workload clients (internal RPCs only — SAN must match GrpcConfig allowlist)
+# Generic and workload clients must fail claim-bearing RPCs.
+issue client-postman 'DNS:postman-local' clientAuth
 issue client-identifier 'DNS:ms-gym-identifier,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-identifier' clientAuth
 issue client-member 'DNS:ms-gym-member,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-member' clientAuth
+issue client-checkin 'DNS:ms-gym-checkin,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-checkin' clientAuth
+issue client-notification 'DNS:ms-gym-notification,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-notification' clientAuth
 
 p12() {
   name=$1
@@ -55,9 +58,12 @@ p12() {
     -name "$name" >/dev/null 2>&1
 }
 
+p12 client-kong
 p12 client-postman
 p12 client-identifier
 p12 client-member
+p12 client-checkin
+p12 client-notification
 
 chmod 600 "$out"/*.key "$out"/*.p12
 
@@ -73,21 +79,21 @@ Server env:
   export PLANS_GRPC_SERVER_KEY=$out/server.key
   export PLANS_GRPC_CLIENT_CA=$out/ca.crt
 
-Postman (public catalog RPCs):
+Kong (public catalog RPCs):
   Server: localhost:50051
   Enable TLS + client cert
   CA / server trust: ca.crt
-  Client cert: client-postman.p12 (password above)
-  Still send x-user-id / x-user-role metadata
+  Client cert: client-kong.p12 (password above)
+  Send x-user-id / x-user-role metadata only through this identity
 
 Internal:
-  GetActiveGym          → client-identifier.p12
+  GetActiveGym           → client-identifier.p12
   ResolvePurchasablePlan → client-member.p12
   (no x-user-* as workload proof)
 
 grpcurl public example:
   grpcurl -cacert $out/ca.crt \\
-    -cert $out/client-postman.crt -key $out/client-postman.key \\
+    -cert $out/client-kong.crt -key $out/client-kong.key \\
     -H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN' \\
     -d '{"chainId":"c","name":"n","address":"a","city":"city"}' \\
     localhost:50051 plans.v1.PlansService/CreateGymLocation

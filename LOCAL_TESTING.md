@@ -17,12 +17,12 @@ cd ms-gym-plans
 ```bash
 PROTO_DIR=../gym-proto/proto
 C=certs/local
-MTLS_PUBLIC=(-cacert "$C/ca.crt" -cert "$C/client-postman.crt" -key "$C/client-postman.key")
+MTLS_PUBLIC=(-cacert "$C/ca.crt" -cert "$C/client-kong.crt" -key "$C/client-kong.key")
 H_SUPER=(-H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN')
 H_CUSTOMER=(-H 'x-user-id: customer-1' -H 'x-user-role: CUSTOMER')
 ```
 
-Kong supplies only `x-user-id` and `x-user-role`. Gym context comes from request paths and fields. `ADMIN` has no mutation authority.
+Public claim-bearing RPCs require Kong's verified client certificate plus `x-user-id` and `x-user-role`. Other CA-valid client certificates cannot supply trusted claims. Gym context comes from request paths and fields. `ADMIN` has no mutation authority.
 
 ## Policy
 
@@ -90,6 +90,8 @@ grpcurl -cacert "$C/ca.crt" -cert "$C/client-member.crt" -key "$C/client-member.
 
 Resolution fails closed when gym is missing or inactive, plan is missing or inactive, or plan does not belong to requested gym. Response supplies canonical plan type, duration, and VND price.
 
+Spring MVC remains active on `:8080` during Stage 2. Its removal and Kong HTTPS/JSON route verification are Stage 4 and Stage 3 work.
+
 ## HTTP routes
 
 | Method | Path | Authorization |
@@ -119,3 +121,5 @@ curl -fsS -X POST http://localhost:8080/api/v1/gyms \
 - Forged `x-gym-id` or `x-membership-status` grants no authority.
 - Identifier certificate cannot call `ResolvePurchasablePlan`.
 - Member certificate cannot call `GetActiveGym`.
+- Kong certificate cannot call workload RPCs.
+- Identifier, Member, Check-in, Notification, and Postman certificates cannot use forged `x-user-*` metadata on public gRPC.

@@ -113,6 +113,7 @@ def jacocoExcludes = [
 ]
 
 test {
+    dependsOn 'ensureLocalCerts'
     useJUnitPlatform()
     finalizedBy jacocoTestReport
 }
@@ -169,7 +170,12 @@ tasks.register('ensureLocalCerts', Exec) {
 set -eu
 need=
 for f in certs/local/server.crt certs/local/server.key certs/local/ca.crt \
-         certs/local/client-postman.crt certs/local/client-postman.key; do
+         certs/local/client-kong.crt certs/local/client-kong.key \
+         certs/local/client-postman.crt certs/local/client-postman.key \
+         certs/local/client-identifier.crt certs/local/client-identifier.key \
+         certs/local/client-member.crt certs/local/client-member.key \
+         certs/local/client-checkin.crt certs/local/client-checkin.key \
+         certs/local/client-notification.crt certs/local/client-notification.key; do
   if [ ! -f "$f" ]; then need=1; break; fi
 done
 if [ -n "$need" ]; then

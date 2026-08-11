@@ -5,8 +5,9 @@ Plans catalog service for gym locations and membership plans.
 ## Scope (G7 / V1)
 
 - Owns `plans_db` tables `gym_locations` and `membership_plans`
-- Public **Spring HTTP** on `8080` for catalog CRUD/list (Kong target)
-- Native gRPC on `50051` for the same public methods plus internal workload RPCs:
+- Public **Spring HTTP** on `8080` for catalog CRUD/list until Stage 4 removal
+- Native gRPC on `50051`:
+  - catalog CRUD/list accepts end-user claims only from verified Kong mTLS identity
   - `GetActiveGym` — Identifier only
   - `ResolvePurchasablePlan` — Member only
 - No Kafka, outbox, cache, scheduler, Redis, Payment client
@@ -15,7 +16,7 @@ Plans catalog service for gym locations and membership plans.
 ## Dependencies
 
 - Java 26, Spring Boot 4.1
-- `com.gym:common-java:2.0.2` (includes `ProtobufJsonHttpMessageConverter` auto-config)
+- `com.gym:common-java:2.1.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
 - `com.gym.proto:gym-proto-java:5.0.0`
 - PostgreSQL (`plans_db`)
 
@@ -34,7 +35,8 @@ export GITHUB_ACTOR=pploc
 `bootRun` auto-runs `ensureLocalCerts` → `certs/local/` when missing. Defaults:
 
 - gRPC mTLS on `:50051` (`certs/local/server.*` + `ca.crt`)
-- HTTP catalog on `:8080` (claim headers, no JWT)
+- public native gRPC requires `certs/local/client-kong.*` plus identity/role metadata
+- HTTP catalog remains on `:8080` until Stage 4 (claim headers, no JWT)
 
 Stop deps:
 
@@ -43,7 +45,7 @@ Stop deps:
 ```
 
 - HTTP: `http://localhost:8080`
-- gRPC mTLS: `localhost:50051` with `certs/local/client-postman.*`
+- gRPC mTLS: `localhost:50051` with `certs/local/client-kong.*` for public RPCs; exact workload certificates for internal RPCs
 - Bodies / Postman: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
 
 Plaintext override (skip mTLS):
@@ -67,9 +69,9 @@ export PLANS_GRPC_ALLOW_PLAINTEXT=true
 | `GET` | `/api/v1/gyms/{gym_id}/plans` | authenticated |
 | `GET` | `/api/v1/plans/{id}` | authenticated |
 
-Kong injects only trusted `x-user-id` and `x-user-role` headers. Gym context comes from request paths and fields.
+Kong injects only trusted `x-user-id` and `x-user-role` metadata. Plans accepts claim-bearing native gRPC only from Kong's DNS/SPIFFE client SAN; Identifier, Member, Check-in, Notification, and Postman identities cannot forge those claims. Gym context comes from request paths and fields.
 
-Internal RPCs have **no** HTTP mapping.
+Internal RPCs have **no** HTTP mapping. Stage 2 does not configure Kong transcoding, CORS, upstream mTLS, or reflection routes; those remain Stage 3 work.
 
 ## Local gRPC / Postman
 

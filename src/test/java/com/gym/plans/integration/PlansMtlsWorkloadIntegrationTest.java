@@ -4,12 +4,22 @@ import com.gym.plans.application.service.GymLocationService;
 import com.gym.plans.application.service.MembershipPlanService;
 import com.gym.plans.domain.dto.GymLocationDto;
 import com.gym.plans.domain.dto.MembershipPlanDto;
+import com.gym.proto.plans.v1.CreateGymLocationRequest;
+import com.gym.proto.plans.v1.CreateMembershipPlanRequest;
 import com.gym.proto.plans.v1.GetActiveGymRequest;
+import com.gym.proto.plans.v1.GetGymLocationRequest;
+import com.gym.proto.plans.v1.GetMembershipPlanRequest;
+import com.gym.proto.plans.v1.ListGymLocationsRequest;
+import com.gym.proto.plans.v1.ListMembershipPlansRequest;
 import com.gym.proto.plans.v1.PlansServiceGrpc;
 import com.gym.proto.plans.v1.ResolvePurchasablePlanRequest;
+import com.gym.proto.plans.v1.UpdateGymLocationRequest;
+import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
@@ -26,6 +36,8 @@ import javax.net.ssl.SSLException;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,12 +59,17 @@ class PlansMtlsWorkloadIntegrationTest {
         return Files.isRegularFile(CERT_DIR.resolve("server.crt"))
                 && Files.isRegularFile(CERT_DIR.resolve("server.key"))
                 && Files.isRegularFile(CERT_DIR.resolve("ca.crt"))
-                && Files.isRegularFile(CERT_DIR.resolve("client-identifier.crt"))
-                && Files.isRegularFile(CERT_DIR.resolve("client-identifier.key"))
-                && Files.isRegularFile(CERT_DIR.resolve("client-member.crt"))
-                && Files.isRegularFile(CERT_DIR.resolve("client-member.key"))
-                && Files.isRegularFile(CERT_DIR.resolve("client-postman.crt"))
-                && Files.isRegularFile(CERT_DIR.resolve("client-postman.key"));
+                && clientCertPresent("client-kong")
+                && clientCertPresent("client-identifier")
+                && clientCertPresent("client-member")
+                && clientCertPresent("client-checkin")
+                && clientCertPresent("client-notification")
+                && clientCertPresent("client-postman");
+    }
+
+    private static boolean clientCertPresent(String clientName) {
+        return Files.isRegularFile(CERT_DIR.resolve(clientName + ".crt"))
+                && Files.isRegularFile(CERT_DIR.resolve(clientName + ".key"));
     }
 
     @Value("${grpc.server.port}")
@@ -66,7 +83,7 @@ class PlansMtlsWorkloadIntegrationTest {
 
     private GymLocationDto gym;
     private MembershipPlanDto plan;
-    private ManagedChannel channel;
+    private final List<ManagedChannel> channels = new ArrayList<>();
 
     @BeforeEach
     void setUpCatalog() {
@@ -76,10 +93,124 @@ class PlansMtlsWorkloadIntegrationTest {
 
     @AfterEach
     void tearDown() throws InterruptedException {
-        if (channel != null) {
+        for (ManagedChannel channel : channels) {
             channel.shutdownNow();
             channel.awaitTermination(3, TimeUnit.SECONDS);
         }
+    }
+
+    @Test
+    void givenKongCertAndValidClaims_whenCallPublicRpcs_thenAllowsAllOperations() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims("client-kong", "super-1", "SUPER_ADMIN");
+
+        // When
+        var createdGym = stub.createGymLocation(CreateGymLocationRequest.newBuilder()
+                .setChainId("chain-kong")
+                .setName("Kong Gym")
+                .setAddress("2 St")
+                .setCity("Hanoi")
+                .build());
+        stub.updateGymLocation(UpdateGymLocationRequest.newBuilder()
+                .setId(gym.id())
+                .setChainId("chain-mtls")
+                .setName("Updated mTLS Gym")
+                .setAddress("1 St")
+                .setCity("Hanoi")
+                .setStatus(com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE)
+                .build());
+        var createdPlan = stub.createMembershipPlan(CreateMembershipPlanRequest.newBuilder()
+                .setGymId(gym.id())
+                .setName("Kong Monthly")
+                .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_MONTHLY)
+                .setDurationDays(30)
+                .setPriceVnd(110_000L)
+                .setDescription("Kong catalog plan")
+                .setActive(true)
+                .build());
+        stub.updateMembershipPlan(UpdateMembershipPlanRequest.newBuilder()
+                .setId(plan.id())
+                .setName("Updated Monthly")
+                .setPlanType(com.gym.proto.common.v1.PlanType.PLAN_TYPE_MONTHLY)
+                .setDurationDays(30)
+                .setPriceVnd(120_000L)
+                .setDescription("Updated catalog plan")
+                .setActive(true)
+                .build());
+        var gymResult = stub.getGymLocation(GetGymLocationRequest.newBuilder().setId(gym.id()).build());
+        var gymsResult = stub.listGymLocations(ListGymLocationsRequest.newBuilder().setChainId("chain-mtls").build());
+        var planResult = stub.getMembershipPlan(GetMembershipPlanRequest.newBuilder().setId(plan.id()).build());
+        var plansResult = stub.listMembershipPlans(ListMembershipPlansRequest.newBuilder().setGymId(gym.id()).build());
+
+        // Then
+        assertEquals("Kong Gym", createdGym.getName());
+        assertEquals("Kong Monthly", createdPlan.getName());
+        assertEquals("Updated mTLS Gym", gymResult.getName());
+        assertTrue(gymsResult.getLocationsCount() >= 1);
+        assertEquals("Updated Monthly", planResult.getName());
+        assertTrue(plansResult.getPlansCount() >= 2);
+    }
+
+    @Test
+    void givenNonKongCertAndForgedSuperAdminClaims_whenCreateGymLocation_thenPermissionDenied() throws Exception {
+        // Given
+        CreateGymLocationRequest request = CreateGymLocationRequest.newBuilder()
+                .setChainId("chain-forged")
+                .setName("Forged Gym")
+                .setAddress("3 St")
+                .setCity("Hanoi")
+                .build();
+
+        // When / Then
+        for (String clientName : List.of(
+                "client-identifier", "client-member", "client-checkin", "client-notification", "client-postman")) {
+            PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims(clientName, "attacker", "SUPER_ADMIN");
+            StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> stub.createGymLocation(request));
+            assertEquals(Status.Code.PERMISSION_DENIED, exception.getStatus().getCode(), clientName);
+        }
+    }
+
+    @Test
+    void givenKongCertWithMissingOrConflictingClaims_whenCreateGymLocation_thenUnauthenticated() throws Exception {
+        // Given
+        CreateGymLocationRequest request = CreateGymLocationRequest.newBuilder()
+                .setChainId("chain-metadata")
+                .setName("Metadata Gym")
+                .setAddress("4 St")
+                .setCity("Hanoi")
+                .build();
+
+        // When / Then
+        StatusRuntimeException missingClaims = assertThrows(
+                StatusRuntimeException.class, () -> stubWith("client-kong").createGymLocation(request));
+        assertEquals(Status.Code.UNAUTHENTICATED, missingClaims.getStatus().getCode());
+
+        Metadata conflictingClaims = claims("super-1", "SUPER_ADMIN");
+        conflictingClaims.put(Metadata.Key.of("x-user-role", Metadata.ASCII_STRING_MARSHALLER), "CUSTOMER");
+        PlansServiceGrpc.PlansServiceBlockingStub stub =
+                stubWith("client-kong").withInterceptors(MetadataUtils.newAttachHeadersInterceptor(conflictingClaims));
+        StatusRuntimeException conflict = assertThrows(StatusRuntimeException.class, () -> stub.createGymLocation(request));
+        assertEquals(Status.Code.UNAUTHENTICATED, conflict.getStatus().getCode());
+    }
+
+    @Test
+    void givenKongCert_whenCallWorkloadRpc_thenPermissionDenied() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-kong");
+
+        // When / Then
+        StatusRuntimeException getActiveGym = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.getActiveGym(GetActiveGymRequest.newBuilder().setGymId(gym.id()).build()));
+        assertEquals(Status.Code.PERMISSION_DENIED, getActiveGym.getStatus().getCode());
+
+        StatusRuntimeException resolvePlan = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.resolvePurchasablePlan(ResolvePurchasablePlanRequest.newBuilder()
+                        .setPlanId(plan.id())
+                        .setGymId(gym.id())
+                        .build()));
+        assertEquals(Status.Code.PERMISSION_DENIED, resolvePlan.getStatus().getCode());
     }
 
     @Test
@@ -192,10 +323,23 @@ class PlansMtlsWorkloadIntegrationTest {
                 .trustManager(ca)
                 .keyManager(cert, key)
                 .build();
-        channel = NettyChannelBuilder.forAddress("localhost", grpcPort)
+        ManagedChannel channel = NettyChannelBuilder.forAddress("localhost", grpcPort)
                 .sslContext(sslContext)
                 .overrideAuthority("localhost")
                 .build();
+        channels.add(channel);
         return PlansServiceGrpc.newBlockingStub(channel).withDeadlineAfter(5, TimeUnit.SECONDS);
+    }
+
+    private PlansServiceGrpc.PlansServiceBlockingStub stubWithClaims(String clientName, String userId, String role)
+            throws SSLException {
+        return stubWith(clientName).withInterceptors(MetadataUtils.newAttachHeadersInterceptor(claims(userId, role)));
+    }
+
+    private static Metadata claims(String userId, String role) {
+        Metadata metadata = new Metadata();
+        metadata.put(Metadata.Key.of("x-user-id", Metadata.ASCII_STRING_MARSHALLER), userId);
+        metadata.put(Metadata.Key.of("x-user-role", Metadata.ASCII_STRING_MARSHALLER), role);
+        return metadata;
     }
 }
