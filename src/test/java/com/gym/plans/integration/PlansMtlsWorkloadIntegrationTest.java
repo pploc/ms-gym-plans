@@ -59,6 +59,7 @@ class PlansMtlsWorkloadIntegrationTest {
         return Files.isRegularFile(CERT_DIR.resolve("server.crt"))
                 && Files.isRegularFile(CERT_DIR.resolve("server.key"))
                 && Files.isRegularFile(CERT_DIR.resolve("ca.crt"))
+                && clientCertPresent("client-gateway")
                 && clientCertPresent("client-kong")
                 && clientCertPresent("client-identifier")
                 && clientCertPresent("client-member")
@@ -100,9 +101,9 @@ class PlansMtlsWorkloadIntegrationTest {
     }
 
     @Test
-    void givenKongCertAndValidClaims_whenCallPublicRpcs_thenAllowsAllOperations() throws Exception {
+    void givenGatewayCertAndValidClaims_whenCallPublicRpcs_thenAllowsAllOperations() throws Exception {
         // Given
-        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims("client-kong", "super-1", "SUPER_ADMIN");
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims("client-gateway", "super-1", "SUPER_ADMIN");
 
         // When
         var createdGym = stub.createGymLocation(CreateGymLocationRequest.newBuilder()
@@ -152,7 +153,7 @@ class PlansMtlsWorkloadIntegrationTest {
     }
 
     @Test
-    void givenNonKongCertAndForgedSuperAdminClaims_whenCreateGymLocation_thenPermissionDenied() throws Exception {
+    void givenNonGatewayCertAndForgedSuperAdminClaims_whenCreateGymLocation_thenPermissionDenied() throws Exception {
         // Given
         CreateGymLocationRequest request = CreateGymLocationRequest.newBuilder()
                 .setChainId("chain-forged")
@@ -163,7 +164,7 @@ class PlansMtlsWorkloadIntegrationTest {
 
         // When / Then
         for (String clientName : List.of(
-                "client-identifier", "client-member", "client-checkin", "client-notification", "client-postman")) {
+                "client-kong", "client-identifier", "client-member", "client-checkin", "client-notification", "client-postman")) {
             PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims(clientName, "attacker", "SUPER_ADMIN");
             StatusRuntimeException exception = assertThrows(StatusRuntimeException.class, () -> stub.createGymLocation(request));
             assertEquals(Status.Code.PERMISSION_DENIED, exception.getStatus().getCode(), clientName);
@@ -171,7 +172,7 @@ class PlansMtlsWorkloadIntegrationTest {
     }
 
     @Test
-    void givenKongCertWithMissingOrConflictingClaims_whenCreateGymLocation_thenUnauthenticated() throws Exception {
+    void givenGatewayCertWithMissingOrConflictingClaims_whenCreateGymLocation_thenUnauthenticated() throws Exception {
         // Given
         CreateGymLocationRequest request = CreateGymLocationRequest.newBuilder()
                 .setChainId("chain-metadata")
@@ -182,21 +183,21 @@ class PlansMtlsWorkloadIntegrationTest {
 
         // When / Then
         StatusRuntimeException missingClaims = assertThrows(
-                StatusRuntimeException.class, () -> stubWith("client-kong").createGymLocation(request));
+                StatusRuntimeException.class, () -> stubWith("client-gateway").createGymLocation(request));
         assertEquals(Status.Code.UNAUTHENTICATED, missingClaims.getStatus().getCode());
 
         Metadata conflictingClaims = claims("super-1", "SUPER_ADMIN");
         conflictingClaims.put(Metadata.Key.of("x-user-role", Metadata.ASCII_STRING_MARSHALLER), "CUSTOMER");
         PlansServiceGrpc.PlansServiceBlockingStub stub =
-                stubWith("client-kong").withInterceptors(MetadataUtils.newAttachHeadersInterceptor(conflictingClaims));
+                stubWith("client-gateway").withInterceptors(MetadataUtils.newAttachHeadersInterceptor(conflictingClaims));
         StatusRuntimeException conflict = assertThrows(StatusRuntimeException.class, () -> stub.createGymLocation(request));
         assertEquals(Status.Code.UNAUTHENTICATED, conflict.getStatus().getCode());
     }
 
     @Test
-    void givenKongCert_whenCallWorkloadRpc_thenPermissionDenied() throws Exception {
+    void givenGatewayCert_whenCallWorkloadRpc_thenPermissionDenied() throws Exception {
         // Given
-        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-kong");
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-gateway");
 
         // When / Then
         StatusRuntimeException getActiveGym = assertThrows(

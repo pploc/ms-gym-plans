@@ -37,7 +37,9 @@ issue() {
 # Server leaf: Postman/grpcurl connect to localhost:50051
 issue server 'DNS:localhost,DNS:ms-gym-plans,IP:127.0.0.1' serverAuth
 
-# Kong is the only client identity allowed to carry end-user claim metadata.
+# Generated gateway is the only client identity allowed to carry end-user claim metadata.
+issue client-gateway 'DNS:ms-gym-api-gateway,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-api-gateway' clientAuth
+# Kong remains CA-valid for direct-service rejection checks.
 issue client-kong 'DNS:kong,URI:spiffe://gym.cluster.local/ns/gym-system/sa/kong' clientAuth
 
 # Generic and workload clients must fail claim-bearing RPCs.
@@ -58,6 +60,7 @@ p12() {
     -name "$name" >/dev/null 2>&1
 }
 
+p12 client-gateway
 p12 client-kong
 p12 client-postman
 p12 client-identifier
@@ -79,12 +82,12 @@ Server env:
   export PLANS_GRPC_SERVER_KEY=$out/server.key
   export PLANS_GRPC_CLIENT_CA=$out/ca.crt
 
-Kong (public catalog RPCs):
+Generated gateway (public catalog RPCs):
   Server: localhost:50051
   Enable TLS + client cert
   CA / server trust: ca.crt
-  Client cert: client-kong.p12 (password above)
-  Send x-user-id / x-user-role metadata only through this identity
+  Client cert: client-gateway.p12 (password above)
+  Send Kong-verified x-user-id / x-user-role metadata only through this identity
 
 Internal:
   GetActiveGym           → client-identifier.p12
@@ -93,7 +96,7 @@ Internal:
 
 grpcurl public example:
   grpcurl -cacert $out/ca.crt \\
-    -cert $out/client-kong.crt -key $out/client-kong.key \\
+    -cert $out/client-gateway.crt -key $out/client-gateway.key \\
     -H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN' \\
     -d '{"chainId":"c","name":"n","address":"a","city":"city"}' \\
     localhost:50051 plans.v1.PlansService/CreateGymLocation

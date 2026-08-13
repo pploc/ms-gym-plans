@@ -170,6 +170,7 @@ tasks.register('ensureLocalCerts', Exec) {
 set -eu
 need=
 for f in certs/local/server.crt certs/local/server.key certs/local/ca.crt \
+         certs/local/client-gateway.crt certs/local/client-gateway.key \
          certs/local/client-kong.crt certs/local/client-kong.key \
          certs/local/client-postman.crt certs/local/client-postman.key \
          certs/local/client-identifier.crt certs/local/client-identifier.key \

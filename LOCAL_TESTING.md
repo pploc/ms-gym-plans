@@ -17,12 +17,12 @@ cd ms-gym-plans
 ```bash
 PROTO_DIR=../gym-proto/proto
 C=certs/local
-MTLS_PUBLIC=(-cacert "$C/ca.crt" -cert "$C/client-kong.crt" -key "$C/client-kong.key")
+MTLS_PUBLIC=(-cacert "$C/ca.crt" -cert "$C/client-gateway.crt" -key "$C/client-gateway.key")
 H_SUPER=(-H 'x-user-id: super-1' -H 'x-user-role: SUPER_ADMIN')
 H_CUSTOMER=(-H 'x-user-id: customer-1' -H 'x-user-role: CUSTOMER')
 ```
 
-Public claim-bearing RPCs require Kong's verified client certificate plus `x-user-id` and `x-user-role`. Other CA-valid client certificates cannot supply trusted claims. Gym context comes from request paths and fields. `ADMIN` has no mutation authority.
+Public claim-bearing RPCs require generated gateway client certificate plus `x-user-id` and `x-user-role` forwarded after Kong JWT verification. Other CA-valid client certificates cannot supply trusted claims. Gym context comes from request paths and fields. `ADMIN` has no mutation authority.
 
 ## Policy
 
@@ -121,5 +121,5 @@ curl -fsS -X POST http://localhost:8080/api/v1/gyms \
 - Forged `x-gym-id` or `x-membership-status` grants no authority.
 - Identifier certificate cannot call `ResolvePurchasablePlan`.
 - Member certificate cannot call `GetActiveGym`.
-- Kong certificate cannot call workload RPCs.
+- Gateway certificate cannot call workload RPCs.
 - Identifier, Member, Check-in, Notification, and Postman certificates cannot use forged `x-user-*` metadata on public gRPC.

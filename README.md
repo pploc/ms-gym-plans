@@ -7,7 +7,7 @@ Plans catalog service for gym locations and membership plans.
 - Owns `plans_db` tables `gym_locations` and `membership_plans`
 - Public **Spring HTTP** on `8080` for catalog CRUD/list until Stage 4 removal
 - Native gRPC on `50051`:
-  - catalog CRUD/list accepts end-user claims only from verified Kong mTLS identity
+  - catalog CRUD/list accepts end-user claims only from verified generated gateway mTLS identity
   - `GetActiveGym` — Identifier only
   - `ResolvePurchasablePlan` — Member only
 - No Kafka, outbox, cache, scheduler, Redis, Payment client
@@ -35,7 +35,7 @@ export GITHUB_ACTOR=pploc
 `bootRun` auto-runs `ensureLocalCerts` → `certs/local/` when missing. Defaults:
 
 - gRPC mTLS on `:50051` (`certs/local/server.*` + `ca.crt`)
-- public native gRPC requires `certs/local/client-kong.*` plus identity/role metadata
+- public native gRPC requires `certs/local/client-gateway.*` plus identity/role metadata
 - HTTP catalog remains on `:8080` until Stage 4 (claim headers, no JWT)
 
 Stop deps:
@@ -45,7 +45,7 @@ Stop deps:
 ```
 
 - HTTP: `http://localhost:8080`
-- gRPC mTLS: `localhost:50051` with `certs/local/client-kong.*` for public RPCs; exact workload certificates for internal RPCs
+- gRPC mTLS: `localhost:50051` with `certs/local/client-gateway.*` for public RPCs; exact workload certificates for internal RPCs
 - Bodies / Postman: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
 
 Plaintext override (skip mTLS):
@@ -69,9 +69,9 @@ export PLANS_GRPC_ALLOW_PLAINTEXT=true
 | `GET` | `/api/v1/gyms/{gym_id}/plans` | authenticated |
 | `GET` | `/api/v1/plans/{id}` | authenticated |
 
-Kong injects only trusted `x-user-id` and `x-user-role` metadata. Plans accepts claim-bearing native gRPC only from Kong's DNS/SPIFFE client SAN; Identifier, Member, Check-in, Notification, and Postman identities cannot forge those claims. Gym context comes from request paths and fields.
+Kong injects only trusted `x-user-id` and `x-user-role` metadata, and generated gateway forwards them. Plans accepts claim-bearing native gRPC only from generated gateway DNS/SPIFFE client SAN; Kong, Identifier, Member, Check-in, Notification, and Postman identities cannot forge those claims. Gym context comes from request paths and fields.
 
-Internal RPCs have **no** HTTP mapping. Stage 2 does not configure Kong transcoding, CORS, upstream mTLS, or reflection routes; those remain Stage 3 work.
+Internal RPCs have **no** HTTP mapping. Stage 3 exposes only generated-gateway public HTTP routes; no reflection or workload routes.
 
 ## Local gRPC / Postman
 

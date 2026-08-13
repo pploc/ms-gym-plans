@@ -47,11 +47,11 @@ class KongIdentityServerInterceptorUnitTest {
     private ServerCall.Listener<Object> listener;
 
     @Test
-    void givenKongDnsSanOnEndUserRpc_whenIntercept_thenContinues() throws Exception {
+    void givenGatewayDnsSanOnEndUserRpc_whenIntercept_thenContinues() throws Exception {
         // Given
         when(registry.getPolicy(END_USER_METHOD))
                 .thenReturn(new GrpcMethodRegistry.MethodPolicy(RpcPolicyKind.ROLE_RESTRICTED, new String[] {"SUPER_ADMIN"}));
-        ServerCall<Object, Object> call = callWithSan(END_USER_METHOD, List.of(2, "kong"));
+        ServerCall<Object, Object> call = callWithSan(END_USER_METHOD, List.of(2, "ms-gym-api-gateway"));
         when(next.startCall(any(), any())).thenReturn(listener);
         KongIdentityServerInterceptor interceptor = new KongIdentityServerInterceptor(registry);
 
@@ -65,12 +65,12 @@ class KongIdentityServerInterceptorUnitTest {
     }
 
     @Test
-    void givenKongSpiffeSanOnEndUserRpc_whenIntercept_thenContinues() throws Exception {
+    void givenGatewaySpiffeSanOnEndUserRpc_whenIntercept_thenContinues() throws Exception {
         // Given
         when(registry.getPolicy(END_USER_METHOD))
                 .thenReturn(new GrpcMethodRegistry.MethodPolicy(RpcPolicyKind.ROLE_RESTRICTED, new String[] {"SUPER_ADMIN"}));
         ServerCall<Object, Object> call = callWithSan(
-                END_USER_METHOD, List.of(6, "spiffe://gym.cluster.local/ns/gym-system/sa/kong"));
+                END_USER_METHOD, List.of(6, "spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-api-gateway"));
         when(next.startCall(any(), any())).thenReturn(listener);
         KongIdentityServerInterceptor interceptor = new KongIdentityServerInterceptor(registry);
 
