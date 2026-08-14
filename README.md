@@ -5,7 +5,6 @@ Plans catalog service for gym locations and membership plans.
 ## Scope (G7 / V1)
 
 - Owns `plans_db` tables `gym_locations` and `membership_plans`
-- Public **Spring HTTP** on `8080` for catalog CRUD/list until Stage 4 removal
 - Native gRPC on `50051`:
   - catalog CRUD/list accepts end-user claims only from verified generated gateway mTLS identity
   - `GetActiveGym` — Identifier only
@@ -17,10 +16,10 @@ Plans catalog service for gym locations and membership plans.
 
 - Java 26, Spring Boot 4.1
 - `com.gym:common-java:2.1.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
-- `com.gym.proto:gym-proto-java:5.0.0`
+- `com.gym.proto:gym-proto-java:6.0.0`
 - PostgreSQL (`plans_db`)
 
-Public HTTP request/response bodies are generated protobuf messages (`com.gym.proto.plans.v1.*`) with camelCase JSON field names (`chainId`, `priceVnd`). Path segments stay contract routes (`/gyms/{gym_id}/plans`). Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
+Browser JSON reaches Plans only through Kong and generated Go grpc-gateway. Plans keeps `8080` for Actuator, probes, and Prometheus; business paths under `/api/v1/**` return `404`. Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
 
 ## Run locally
 
@@ -36,7 +35,7 @@ export GITHUB_ACTOR=pploc
 
 - gRPC mTLS on `:50051` (`certs/local/server.*` + `ca.crt`)
 - public native gRPC requires `certs/local/client-gateway.*` plus identity/role metadata
-- HTTP catalog remains on `:8080` until Stage 4 (claim headers, no JWT)
+- Actuator/probes/metrics on `:8080`; direct business HTTP is disabled
 
 Stop deps:
 
@@ -44,9 +43,9 @@ Stop deps:
 ./gradlew stopEnv
 ```
 
-- HTTP: `http://localhost:8080`
+- Actuator: `http://localhost:8080/actuator/health`
 - gRPC mTLS: `localhost:50051` with `certs/local/client-gateway.*` for public RPCs; exact workload certificates for internal RPCs
-- Bodies / Postman: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
+- Browser API: Kong HTTPS, then generated gateway; gRPC bodies: [LOCAL_TESTING.md](./LOCAL_TESTING.md)
 
 Plaintext override (skip mTLS):
 
@@ -56,22 +55,13 @@ export PLANS_GRPC_ALLOW_PLAINTEXT=true
 ./gradlew bootRun
 ```
 
-## Public HTTP routes
+## HTTP surface
 
-| Method | Path | Roles |
-|--------|------|--------|
-| `POST` | `/api/v1/gyms` | `SUPER_ADMIN` |
-| `PUT` | `/api/v1/gyms/{id}` | `SUPER_ADMIN` |
-| `GET` | `/api/v1/gyms` | authenticated |
-| `GET` | `/api/v1/gyms/{id}` | authenticated |
-| `POST` | `/api/v1/gyms/{gym_id}/plans` | `SUPER_ADMIN` |
-| `PUT` | `/api/v1/plans/{id}` | `SUPER_ADMIN` |
-| `GET` | `/api/v1/gyms/{gym_id}/plans` | authenticated |
-| `GET` | `/api/v1/plans/{id}` | authenticated |
+`8080` exposes Actuator health and Prometheus only. Direct business paths, including `/api/v1/**`, return `404`.
 
-Kong injects only trusted `x-user-id` and `x-user-role` metadata, and generated gateway forwards them. Plans accepts claim-bearing native gRPC only from generated gateway DNS/SPIFFE client SAN; Kong, Identifier, Member, Check-in, Notification, and Postman identities cannot forge those claims. Gym context comes from request paths and fields.
+Kong injects only trusted `x-user-id` and `x-user-role` metadata, and generated gateway forwards them over mTLS. Plans accepts claim-bearing gRPC only from generated gateway DNS/SPIFFE client SAN; Kong, Identifier, Member, Check-in, Notification, and Postman identities cannot forge those claims. Gym context comes from request paths and fields.
 
-Internal RPCs have **no** HTTP mapping. Stage 3 exposes only generated-gateway public HTTP routes; no reflection or workload routes.
+Internal RPCs have no HTTP mapping. Kong exposes only generated-gateway public routes; no reflection or workload routes.
 
 ## Local gRPC / Postman
 
@@ -93,7 +83,7 @@ GitHub Actions (`.github/workflows/ci.yml`) reuses `gym-infra`:
 | Env | Default | Purpose |
 |-----|---------|---------|
 | `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5433/plans_db` | DB |
-| `SERVER_PORT` | `8080` | Public HTTP |
+| `SERVER_PORT` | `8080` | Actuator, probes, and metrics |
 | `GRPC_SERVER_PORT` | `50051` | gRPC |
 | `PLANS_GRPC_TLS_ENABLED` | `true` | mTLS |
 | `PLANS_GRPC_ALLOW_PLAINTEXT` | `false` | test-only plaintext |

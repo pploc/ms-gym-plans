@@ -1,6 +1,6 @@
-# Plans — local testing (gRPC + HTTP)
+# Plans — local testing (gRPC)
 
-Examples for current Stage 0 Plans service with `gym-proto` `5.0.0`.
+Examples for Plans with `gym-proto` `6.0.0`.
 
 ## Start
 
@@ -10,8 +10,9 @@ cd ms-gym-plans
 ./gradlew bootRun
 ```
 
-- HTTP: `http://localhost:8080`
+- Actuator: `http://localhost:8080/actuator/health`
 - gRPC mTLS: `localhost:50051`
+- Browser JSON: Kong HTTPS, then generated Go grpc-gateway
 - Stop dependencies: `./gradlew stopEnv`
 
 ```bash
@@ -26,7 +27,7 @@ Public claim-bearing RPCs require generated gateway client certificate plus `x-u
 
 ## Policy
 
-| RPC / HTTP operation | Authorization |
+| RPC | Authorization |
 |---|---|
 | Create or update gym | `SUPER_ADMIN` only |
 | Create or update plan | `SUPER_ADMIN` only |
@@ -90,35 +91,23 @@ grpcurl -cacert "$C/ca.crt" -cert "$C/client-member.crt" -key "$C/client-member.
 
 Resolution fails closed when gym is missing or inactive, plan is missing or inactive, or plan does not belong to requested gym. Response supplies canonical plan type, duration, and VND price.
 
-Spring MVC remains active on `:8080` during Stage 2. Its removal and Kong HTTPS/JSON route verification are Stage 4 and Stage 3 work.
+## HTTP isolation
 
-## HTTP routes
-
-| Method | Path | Authorization |
-|---|---|---|
-| `POST` | `/api/v1/gyms` | `SUPER_ADMIN` |
-| `PUT` | `/api/v1/gyms/{id}` | `SUPER_ADMIN` |
-| `GET` | `/api/v1/gyms` | authenticated |
-| `GET` | `/api/v1/gyms/{id}` | authenticated |
-| `POST` | `/api/v1/gyms/{gym_id}/plans` | `SUPER_ADMIN` |
-| `PUT` | `/api/v1/plans/{id}` | `SUPER_ADMIN` |
-| `GET` | `/api/v1/gyms/{gym_id}/plans` | authenticated |
-| `GET` | `/api/v1/plans/{id}` | authenticated |
-
-Example:
+`8080` serves Actuator, probes, and Prometheus only. Direct business HTTP is disabled:
 
 ```bash
-curl -fsS -X POST http://localhost:8080/api/v1/gyms \
-  -H 'Content-Type: application/json' \
-  -H 'x-user-id: super-1' \
-  -H 'x-user-role: SUPER_ADMIN' \
-  -d '{"chainId":"chain-vn-hcm","name":"Saigon Landmark 81","address":"720A Dien Bien Phu","city":"Ho Chi Minh"}'
+curl -i http://localhost:8080/api/v1/gyms
+# HTTP/1.1 404
+curl -fsS http://localhost:8080/actuator/health/liveness
+curl -fsS http://localhost:8080/actuator/health/readiness
 ```
+
+Kong HTTPS is required for browser JSON. It authenticates JWTs and forwards trusted claims through generated gateway mTLS.
 
 ## Negative checks
 
-- `ADMIN` gym or plan mutation is denied on gRPC and HTTP.
-- Forged `x-gym-id` or `x-membership-status` grants no authority.
+- `ADMIN` gym or plan mutation is denied on gRPC.
+- Direct `/api/v1/**` requests on `:8080` return `404`.
 - Identifier certificate cannot call `ResolvePurchasablePlan`.
 - Member certificate cannot call `GetActiveGym`.
 - Gateway certificate cannot call workload RPCs.
