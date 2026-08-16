@@ -9,14 +9,15 @@ Plans catalog service for gym locations and membership plans.
   - catalog CRUD/list accepts end-user claims only from verified generated gateway mTLS identity
   - `GetActiveGym` — Identifier only
   - `ResolvePurchasablePlan` — Member only
+  - `ValidateCheckInGym` — Check-in only
 - No Kafka, outbox, cache, scheduler, Redis, Payment client
 - No separate Go gateway process — Java service serves HTTP and gRPC
 
 ## Dependencies
 
 - Java 26, Spring Boot 4.1
-- `com.gym:common-java:2.1.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
-- `com.gym.proto:gym-proto-java:6.0.0`
+- `com.gym:common-java:3.0.0-rc.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
+- `com.gym.proto:gym-proto-java:7.0.2`
 - PostgreSQL (`plans_db`)
 
 Browser JSON reaches Plans only through Kong and generated Go grpc-gateway. Plans keeps `8080` for Actuator, probes, and Prometheus; business paths under `/api/v1/**` return `404`. Do not use `mavenLocal()` or SNAPSHOT common-java for release verification.
@@ -73,10 +74,10 @@ See [LOCAL_TESTING.md](./LOCAL_TESTING.md) for claim headers and full request bo
 ./gradlew clean build
 ```
 
-GitHub Actions (`.github/workflows/ci.yml`) reuses `gym-infra`:
+GitHub Actions (`.github/workflows/ci.yml`) pins reusable `gym-infra` workflow revisions:
 
-- `java-ci.yml@develop` with `gradle_args: build`
-- `docker-build.yml@develop` for `ms-gym-plans` image push on develop/main/feature/hotfix
+- `java-ci.yml@4aa5f289f526b3fc2bb22790fe6e0dc2b49fe243` with `gradle_args: build`
+- `docker-build.yml@ace7a285cc14b3e1121cac17bcfa9ea0ce5d1102` publishes only on a `develop` `workflow_dispatch` with `publish_image=true`; image tag is source SHA only
 
 ## Config
 

@@ -15,6 +15,7 @@ import com.gym.proto.plans.v1.PlansServiceGrpc;
 import com.gym.proto.plans.v1.ResolvePurchasablePlanRequest;
 import com.gym.proto.plans.v1.UpdateGymLocationRequest;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
+import com.gym.proto.plans.v1.ValidateCheckInGymRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.Status;
@@ -228,6 +229,117 @@ class PlansMtlsWorkloadIntegrationTest {
         assertEquals(
                 com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE,
                 response.getStatus());
+    }
+
+    @Test
+    void givenCheckinCert_whenValidateCheckInGym_thenAllowsCanonicalActiveGym() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-checkin");
+
+        // When
+        var response = stub.validateCheckInGym(
+                ValidateCheckInGymRequest.newBuilder().setGymId(gym.id()).build());
+
+        // Then
+        assertEquals(gym.id(), response.getGymId());
+        assertEquals(
+                com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE,
+                response.getStatus());
+    }
+
+    @Test
+    void givenWrongWorkloadCert_whenValidateCheckInGym_thenPermissionDenied() throws Exception {
+        // Given
+        for (String clientName : List.of(
+                "client-gateway", "client-kong", "client-identifier", "client-member", "client-notification", "client-postman")) {
+            PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims(clientName, "forged-user", "SUPER_ADMIN");
+
+            // When
+            StatusRuntimeException exception = assertThrows(
+                    StatusRuntimeException.class,
+                    () -> stub.validateCheckInGym(ValidateCheckInGymRequest.newBuilder().setGymId(gym.id()).build()),
+                    clientName);
+
+            // Then
+            assertEquals(Status.Code.PERMISSION_DENIED, exception.getStatus().getCode(), clientName);
+        }
+    }
+
+    @Test
+    void givenCheckinCertWithForgedClaims_whenValidateCheckInGym_thenAllowsByWorkloadIdentity() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWithClaims("client-checkin", "forged-user", "SUPER_ADMIN");
+
+        // When
+        var response = stub.validateCheckInGym(
+                ValidateCheckInGymRequest.newBuilder().setGymId(gym.id()).build());
+
+        // Then
+        assertEquals(gym.id(), response.getGymId());
+    }
+
+    @Test
+    void givenCheckinCertificate_whenValidateCheckInGymForMissingGym_thenNotFound() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-checkin");
+
+        // When
+        StatusRuntimeException exception = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.validateCheckInGym(
+                        ValidateCheckInGymRequest.newBuilder().setGymId("missing-gym").build()));
+
+        // Then
+        assertEquals(Status.Code.NOT_FOUND, exception.getStatus().getCode());
+    }
+
+    @Test
+    void givenCheckinCertificate_whenValidateCheckInGymForClosedGym_thenFailedPrecondition() throws Exception {
+        // Given
+        gymLocationService.update(gym.id(), "chain-mtls", "mTLS Gym", "1 St", "Hanoi", "CLOSED");
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-checkin");
+
+        // When
+        StatusRuntimeException exception = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.validateCheckInGym(
+                        ValidateCheckInGymRequest.newBuilder().setGymId(gym.id()).build()));
+
+        // Then
+        assertEquals(Status.Code.FAILED_PRECONDITION, exception.getStatus().getCode());
+    }
+
+    @Test
+    void givenCheckinCertificate_whenValidateCheckInGymWithoutGymId_thenInvalidArgument() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-checkin");
+
+        // When
+        StatusRuntimeException exception = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.validateCheckInGym(ValidateCheckInGymRequest.getDefaultInstance()));
+
+        // Then
+        assertEquals(Status.Code.INVALID_ARGUMENT, exception.getStatus().getCode());
+    }
+
+    @Test
+    void givenCheckinCertificate_whenCallOtherWorkloadRpcs_thenPermissionDenied() throws Exception {
+        // Given
+        PlansServiceGrpc.PlansServiceBlockingStub stub = stubWith("client-checkin");
+
+        // When / Then
+        StatusRuntimeException getActiveGym = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.getActiveGym(GetActiveGymRequest.newBuilder().setGymId(gym.id()).build()));
+        StatusRuntimeException resolvePlan = assertThrows(
+                StatusRuntimeException.class,
+                () -> stub.resolvePurchasablePlan(ResolvePurchasablePlanRequest.newBuilder()
+                        .setPlanId(plan.id())
+                        .setGymId(gym.id())
+                        .build()));
+        assertEquals(Status.Code.PERMISSION_DENIED, getActiveGym.getStatus().getCode());
+        assertEquals(Status.Code.PERMISSION_DENIED, resolvePlan.getStatus().getCode());
     }
 
     @Test

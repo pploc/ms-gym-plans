@@ -30,6 +30,8 @@ import com.gym.proto.plans.v1.ResolvePurchasablePlanRequest;
 import com.gym.proto.plans.v1.ResolvePurchasablePlanResponse;
 import com.gym.proto.plans.v1.UpdateGymLocationRequest;
 import com.gym.proto.plans.v1.UpdateGymLocationResponse;
+import com.gym.proto.plans.v1.ValidateCheckInGymRequest;
+import com.gym.proto.plans.v1.ValidateCheckInGymResponse;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import com.gym.proto.plans.v1.UpdateMembershipPlanResponse;
 import io.grpc.stub.StreamObserver;
@@ -143,6 +145,17 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
     @RequirePolicy(RpcPolicyKind.INTERNAL_WORKLOAD)
     public void getActiveGym(GetActiveGymRequest request, StreamObserver<GetActiveGymResponse> responseObserver) {
         complete(responseObserver, gymLocationMapper.toActiveResponse(gymLocationService.getActive(request.getGymId())));
+    }
+
+    @Override
+    @RequirePolicy(RpcPolicyKind.INTERNAL_WORKLOAD)
+    public void validateCheckInGym(
+            ValidateCheckInGymRequest request, StreamObserver<ValidateCheckInGymResponse> responseObserver) {
+        GymLocationDto gym = gymLocationService.getActive(request.getGymId());
+        complete(responseObserver, ValidateCheckInGymResponse.newBuilder()
+                .setGymId(gym.id())
+                .setStatus(ProtoEnums.toProto(gym.status()))
+                .build());
     }
 
     @Override

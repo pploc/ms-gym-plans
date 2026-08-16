@@ -32,6 +32,8 @@ import com.gym.proto.plans.v1.UpdateGymLocationRequest;
 import com.gym.proto.plans.v1.UpdateGymLocationResponse;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import com.gym.proto.plans.v1.UpdateMembershipPlanResponse;
+import com.gym.proto.plans.v1.ValidateCheckInGymRequest;
+import com.gym.proto.plans.v1.ValidateCheckInGymResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
@@ -173,6 +175,29 @@ class PlansGrpcHandlerUnitTest {
 
         verify(observer).onNext(any(GetActiveGymResponse.class));
         verify(observer).onCompleted();
+    }
+
+    @Test
+    void givenActiveGym_whenValidateCheckInGym_thenReturnsCanonicalActiveGym() {
+        // given
+        GymLocationDto dto =
+                new GymLocationDto("gym-canonical", "c1", "Central", "1 Main", "Hanoi", GymLocationStatus.ACTIVE, null, null);
+        when(gymLocationService.getActive("gym-request")).thenReturn(dto);
+        @SuppressWarnings("unchecked")
+        StreamObserver<ValidateCheckInGymResponse> observer = mock(StreamObserver.class);
+        ArgumentCaptor<ValidateCheckInGymResponse> response = ArgumentCaptor.forClass(ValidateCheckInGymResponse.class);
+
+        // when
+        handler.validateCheckInGym(
+                ValidateCheckInGymRequest.newBuilder().setGymId("gym-request").build(), observer);
+
+        // then
+        verify(observer).onNext(response.capture());
+        verify(observer).onCompleted();
+        assertEquals("gym-canonical", response.getValue().getGymId());
+        assertEquals(
+                com.gym.proto.plans.v1.GymLocationStatus.GYM_LOCATION_STATUS_ACTIVE,
+                response.getValue().getStatus());
     }
 
     @Test

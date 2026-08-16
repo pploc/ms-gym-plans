@@ -35,6 +35,7 @@ import static org.mockito.Mockito.when;
 class GrpcConfigUnitTest {
 
     private static final String GET_ACTIVE_GYM = "plans.v1.PlansService/GetActiveGym";
+    private static final String VALIDATE_CHECK_IN_GYM = "plans.v1.PlansService/ValidateCheckInGym";
     private static final String RESOLVE_PURCHASABLE_PLAN = "plans.v1.PlansService/ResolvePurchasablePlan";
 
     private final GrpcConfig config = new GrpcConfig(
@@ -69,6 +70,25 @@ class GrpcConfigUnitTest {
     }
 
     @Test
+    void givenCheckinDnsSanOnValidateCheckInGym_whenVerifyWorkloadIdentity_thenAllows() throws Exception {
+        // given
+        ServerCall<?, ?> call = callWithSans(VALIDATE_CHECK_IN_GYM, List.of(List.of(2, "ms-gym-checkin")));
+
+        // when / then
+        assertTrue(verifier.isVerified(call));
+    }
+
+    @Test
+    void givenCheckinSpiffeSanOnValidateCheckInGym_whenVerifyWorkloadIdentity_thenAllows() throws Exception {
+        // given
+        ServerCall<?, ?> call = callWithSans(
+                VALIDATE_CHECK_IN_GYM, List.of(List.of(6, "spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-checkin")));
+
+        // when / then
+        assertTrue(verifier.isVerified(call));
+    }
+
+    @Test
     void givenMemberDnsSanOnResolvePurchasablePlan_whenVerifyWorkloadIdentity_thenAllows() throws Exception {
         // Given
         ServerCall<?, ?> call = callWithSans(RESOLVE_PURCHASABLE_PLAN, List.of(List.of(2, "ms-gym-member")));
@@ -94,11 +114,17 @@ class GrpcConfigUnitTest {
         ServerCall<?, ?> identifierOnMemberMethod =
                 callWithSans(RESOLVE_PURCHASABLE_PLAN, List.of(List.of(2, "ms-gym-identifier")));
         ServerCall<?, ?> kongOnWorkloadMethod = callWithSans(GET_ACTIVE_GYM, List.of(List.of(2, "kong")));
+        ServerCall<?, ?> identifierOnCheckinMethod =
+                callWithSans(VALIDATE_CHECK_IN_GYM, List.of(List.of(2, "ms-gym-identifier")));
+        ServerCall<?, ?> checkinOnIdentifierMethod =
+                callWithSans(GET_ACTIVE_GYM, List.of(List.of(2, "ms-gym-checkin")));
 
         // When / Then
         assertFalse(verifier.isVerified(memberOnIdentifierMethod));
         assertFalse(verifier.isVerified(identifierOnMemberMethod));
         assertFalse(verifier.isVerified(kongOnWorkloadMethod));
+        assertFalse(verifier.isVerified(identifierOnCheckinMethod));
+        assertFalse(verifier.isVerified(checkinOnIdentifierMethod));
     }
 
     @Test

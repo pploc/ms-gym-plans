@@ -1,6 +1,6 @@
 # Plans — local testing (gRPC)
 
-Examples for Plans with `gym-proto` `6.0.0`.
+Examples for Plans with `gym-proto` `7.0.2`.
 
 ## Start
 
@@ -34,6 +34,7 @@ Public claim-bearing RPCs require generated gateway client certificate plus `x-u
 | Get or list gyms/plans | authenticated role |
 | `GetActiveGym` | Identifier certificate only |
 | `ResolvePurchasablePlan` | Member certificate only |
+| `ValidateCheckInGym` | Check-in certificate only |
 
 ## Public gRPC examples
 
@@ -87,6 +88,15 @@ grpcurl -cacert "$C/ca.crt" -cert "$C/client-member.crt" -key "$C/client-member.
   -import-path "$PROTO_DIR" -proto plans/v1/plans.proto \
   -d '{"planId":"PLAN_ID","gymId":"GYM_ID"}' \
   localhost:50051 plans.v1.PlansService/ResolvePurchasablePlan
+```
+
+### ValidateCheckInGym — Check-in only
+
+```bash
+grpcurl -cacert "$C/ca.crt" -cert "$C/client-checkin.crt" -key "$C/client-checkin.key" \
+  -import-path "$PROTO_DIR" -proto plans/v1/plans.proto \
+  -d '{"gymId":"GYM_ID"}' \
+  localhost:50051 plans.v1.PlansService/ValidateCheckInGym
 ```
 
 Resolution fails closed when gym is missing or inactive, plan is missing or inactive, or plan does not belong to requested gym. Response supplies canonical plan type, duration, and VND price.
