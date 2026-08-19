@@ -16,7 +16,7 @@ Plans catalog service for gym locations and membership plans.
 ## Dependencies
 
 - Java 26, Spring Boot 4.1
-- `com.gym:common-java:3.0.0-rc.1` (includes `ProtobufJsonHttpMessageConverter` auto-config)
+- `com.gym:common-java:3.0.0` (includes `ProtobufJsonHttpMessageConverter` auto-config)
 - `com.gym.proto:gym-proto-java:7.0.2`
 - PostgreSQL (`plans_db`)
 
