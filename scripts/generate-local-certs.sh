@@ -48,6 +48,7 @@ issue client-identifier 'DNS:ms-gym-identifier,URI:spiffe://gym.cluster.local/ns
 issue client-member 'DNS:ms-gym-member,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-member' clientAuth
 issue client-checkin 'DNS:ms-gym-checkin,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-checkin' clientAuth
 issue client-notification 'DNS:ms-gym-notification,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-notification' clientAuth
+issue client-trainer 'DNS:ms-gym-trainer,URI:spiffe://gym.cluster.local/ns/gym-system/sa/ms-gym-trainer' clientAuth
 
 p12() {
   name=$1
@@ -67,6 +68,7 @@ p12 client-identifier
 p12 client-member
 p12 client-checkin
 p12 client-notification
+p12 client-trainer
 
 chmod 600 "$out"/*.key "$out"/*.p12
 

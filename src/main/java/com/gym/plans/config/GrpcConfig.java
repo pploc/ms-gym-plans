@@ -35,6 +35,7 @@ public class GrpcConfig {
 
     private static final String GET_ACTIVE_GYM = "plans.v1.PlansService/GetActiveGym";
     private static final String VALIDATE_CHECK_IN_GYM = "plans.v1.PlansService/ValidateCheckInGym";
+    private static final String VALIDATE_TRAINER_GYM = "plans.v1.PlansService/ValidateTrainerGym";
     private static final String RESOLVE_PURCHASABLE_PLAN = "plans.v1.PlansService/ResolvePurchasablePlan";
 
     private final PlansGrpcHandler plansGrpcHandler;
@@ -71,6 +72,7 @@ public class GrpcConfig {
         Map<String, Set<String>> methodAllowlist = Map.of(
                 GET_ACTIVE_GYM, workloadSans("ms-gym-identifier"),
                 VALIDATE_CHECK_IN_GYM, workloadSans("ms-gym-checkin"),
+                VALIDATE_TRAINER_GYM, workloadSans("ms-gym-trainer"),
                 RESOLVE_PURCHASABLE_PLAN, workloadSans("ms-gym-member"));
         return call -> PeerCertificateIdentity.hasAllowedSan(
                 call, methodAllowlist.get(call.getMethodDescriptor().getFullMethodName()));

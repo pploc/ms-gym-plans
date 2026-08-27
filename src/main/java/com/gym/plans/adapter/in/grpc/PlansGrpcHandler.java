@@ -32,6 +32,8 @@ import com.gym.proto.plans.v1.UpdateGymLocationRequest;
 import com.gym.proto.plans.v1.UpdateGymLocationResponse;
 import com.gym.proto.plans.v1.ValidateCheckInGymRequest;
 import com.gym.proto.plans.v1.ValidateCheckInGymResponse;
+import com.gym.proto.plans.v1.ValidateTrainerGymRequest;
+import com.gym.proto.plans.v1.ValidateTrainerGymResponse;
 import com.gym.proto.plans.v1.UpdateMembershipPlanRequest;
 import com.gym.proto.plans.v1.UpdateMembershipPlanResponse;
 import io.grpc.stub.StreamObserver;
@@ -153,6 +155,17 @@ public class PlansGrpcHandler extends PlansServiceGrpc.PlansServiceImplBase {
             ValidateCheckInGymRequest request, StreamObserver<ValidateCheckInGymResponse> responseObserver) {
         GymLocationDto gym = gymLocationService.getActive(request.getGymId());
         complete(responseObserver, ValidateCheckInGymResponse.newBuilder()
+                .setGymId(gym.id())
+                .setStatus(ProtoEnums.toProto(gym.status()))
+                .build());
+    }
+
+    @Override
+    @RequirePolicy(RpcPolicyKind.INTERNAL_WORKLOAD)
+    public void validateTrainerGym(
+            ValidateTrainerGymRequest request, StreamObserver<ValidateTrainerGymResponse> responseObserver) {
+        GymLocationDto gym = gymLocationService.getActive(request.getGymId());
+        complete(responseObserver, ValidateTrainerGymResponse.newBuilder()
                 .setGymId(gym.id())
                 .setStatus(ProtoEnums.toProto(gym.status()))
                 .build());
